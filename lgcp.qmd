@@ -1,0 +1,24 @@
+---
+title: "Modelling point patterns with the log-Gaussian Cox process"
+data: today
+author: Max Savery
+format: html
+---
+
+```{r}
+#| eval: false
+library(viridis)
+library(hrbrthemes)
+library(cmdstanr) 
+library(bayesplot)
+library(inla)
+source("stan_models/lgcp.R")
+```
+To install the R-INLA package, run "install.packages("INLA",repos=c(getOption("repos"),INLA="https://inla.r-inla-download.org/R/stable"), dep=TRUE)"
+
+Here we are going to cover the basics of the log-Gaussian Cox Process (INLA), it's approximation using the Integrated Nested Laplace Approximation, and the application of this model to Presence-Only point pattern modelling.
+
+There are many good references, as this is a somewhat trendy model in ecology.
+- https://www.r-inla.org/examples-tutorials   
+- https://www.precision-analytics.ca/articles/a-gentle-inla-tutorial/#1-bayesian-inference    
+- https://www.pymc.io/projects/docs/en/v3.11.4/pymc-examples/examples/case_studies/log-gaussian-cox-process.html   
