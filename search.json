@@ -1,0 +1,23 @@
+[
+  {
+    "objectID": "index.html",
+    "href": "index.html",
+    "title": ".",
+    "section": "",
+    "text": "Preface\nThis is a Quarto book.\nTo learn more about Quarto books visit https://quarto.org/docs/books."
+  },
+  {
+    "objectID": "intro.html",
+    "href": "intro.html",
+    "title": "1  Introduction",
+    "section": "",
+    "text": "This is a report about Log Gaussian Cox Processes (LGCP). These are a type of point process models incorporating a Gaussian Random Field. Doing so allows us to take into account spatial or temporal correlation across our region. Statistically, this is quite an advantageous improvement from the Poisson Point Process. However, the inclusion of the random field presents mathematical and computational challenges. We will address some of these here and cover the basic state of the literature regarding these problems."
+  },
+  {
+    "objectID": "summary.html",
+    "href": "summary.html",
+    "title": "2  Conclusion.",
+    "section": "",
+    "text": "LGCP is an interesting model, statistically and ecologically."
+  }
+]
