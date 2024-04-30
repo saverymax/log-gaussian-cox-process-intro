@@ -2,7 +2,7 @@ project:
   type: book
 
 book:
-  title: "."
+  title: "Log-Gaussian Cox Processes: Approximations and Usage"
   author: "Max Savery"
   #date: "29/4/2024"
   chapters:

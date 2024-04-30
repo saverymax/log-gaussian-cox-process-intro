@@ -51,3 +51,5 @@ rsconnect/
 /._quarto
 /_site
 /_book
+
+/.quarto/
