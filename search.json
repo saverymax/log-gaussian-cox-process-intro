@@ -20,13 +20,33 @@
     ]
   },
   {
+    "objectID": "theory.html",
+    "href": "theory.html",
+    "title": "2  LGCP theory",
+    "section": "",
+    "text": "The LGCP incorporates …\nIn the Poisson Point Process the intensity is written as \\[\n\\lambda(s) = \\theta(s)b(s) = \\exp[\\alpha + \\beta'x(s) + \\gamma + \\delta'z(s)]\n\\] In the LGCP we now incorporate a Gaussian Random Field to incorporate spatial correlation between sites \\[\n\\lambda(s) = \\theta(s)b(s) = \\exp[\\alpha + \\beta'x(s) + \\gamma + \\delta'z(s) + w(s)]\n\\] so that the expected value for quadrat \\(A\\) will be the integral over the quadrat: \\[\n\\Delta(A) = \\int_A\\lambda(s)ds = \\int_A \\exp[\\alpha + \\beta'x(s) + \\gamma + \\delta'z(s) + w(s)]ds\n\\]\nHowever, this forces to use a covariance structure that grows in size as the area of interest increases in area. Thus, the computational complexity to estimate such covariance structure as \\(n\\) increases makes this approach inhibitively costly for large regions.",
+    "crumbs": [
+      "<span class='chapter-number'>2</span>  <span class='chapter-title'>LGCP theory</span>"
+    ]
+  },
+  {
+    "objectID": "approximation.html",
+    "href": "approximation.html",
+    "title": "3  Approximation",
+    "section": "",
+    "text": "3.1 INLA",
+    "crumbs": [
+      "<span class='chapter-number'>3</span>  <span class='chapter-title'>Approximation</span>"
+    ]
+  },
+  {
     "objectID": "summary.html",
     "href": "summary.html",
-    "title": "2  Conclusion.",
+    "title": "4  Conclusion.",
     "section": "",
     "text": "LGCP is an interesting model, statistically and ecologically.",
     "crumbs": [
-      "<span class='chapter-number'>2</span>  <span class='chapter-title'>Conclusion.</span>"
+      "<span class='chapter-number'>4</span>  <span class='chapter-title'>Conclusion.</span>"
     ]
   }
 ]
