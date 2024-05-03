@@ -8,6 +8,8 @@ book:
   chapters:
     - index.qmd
     - intro.qmd
+    - theory.qmd
+    - approximation.qmd
     - summary.qmd
     - references.qmd
 

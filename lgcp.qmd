@@ -20,5 +20,20 @@ Here we are going to cover the basics of the log-Gaussian Cox Process (INLA), it
 
 There are many good references, as this is a somewhat trendy model in ecology.
 - https://www.r-inla.org/examples-tutorials   
+- https://akawiecki.github.io/statistical_rethinking_inla/index.html
 - https://www.precision-analytics.ca/articles/a-gentle-inla-tutorial/#1-bayesian-inference    
 - https://www.pymc.io/projects/docs/en/v3.11.4/pymc-examples/examples/case_studies/log-gaussian-cox-process.html   
+
+
+
+```{r}
+#| label: inla-fit
+#fit the model
+dat.inla <- inla(y~x+f(unit, model='iid'), family='poisson',
+   data=dat.pred,
+   control.family=list(link='log'),
+   control.predictor=list(link=1, compute=TRUE),
+   control.compute=list(dic=TRUE, cpo=TRUE, waic=TRUE))
+#examine the regular summary 
+summary(dat.inla)
+```
