@@ -2,6 +2,8 @@
 
 The LGCP incorporates ...
 
+Spatio-temporal? See @camelitti-2013 to set up the pieces for the spatial-temporal covariance bits.
+
 In the Poisson Point Process the intensity is written as
 $$
 \lambda(s) = \theta(s)b(s) = \exp[\alpha + \beta'x(s) + \gamma + \delta'z(s)]
@@ -12,8 +14,13 @@ $$
 $$
 so that the expected value for quadrat $A$ will be the integral over the quadrat:
 $$
-\Delta(A) = \int_A\lambda(s)ds = \int_A \exp[\alpha + \beta'x(s) + \gamma + \delta'z(s) + w(s)]ds
+\Delta(A) = \int_A\lambdabda(s)ds = \int_A \exp[\alpha + \beta'x(s) + \gamma + \delta'z(s) + w(s)]ds
 $$
 
 However, this forces to use a covariance structure that grows in size as the area of interest increases in area. Thus, the computational complexity
-to estimate such covariance structure as $n$ increases makes this approach inhibitively costly for large regions.
+to estimate such covariance structure as $n$ increases makes this approach inhibitively costly for large regions. Using MCMC to estimate this model is possible, but slow.
+
+Integrated Nested Laplace Approximations have been proposed by @rue-2009 as a fast way to estimate LGCPs.	
+
+# Covariance Matrices
+

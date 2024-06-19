@@ -4,12 +4,13 @@ project:
 book:
   title: "Log-Gaussian Cox Processes: Approximations and Usage"
   author: "Max Savery"
-  #date: "29/4/2024"
+  date: "29/4/2024"
   chapters:
     - index.qmd
     - intro.qmd
     - theory.qmd
     - approximation.qmd
+    #- lgcp.qmd
     - summary.qmd
     - references.qmd
 

@@ -1,3 +1,39 @@
 # Approximation
 
+Some of this writing and notation is liberally taken from E.T. Krainski et al. (2019). I highly appreciate the work they did by providing a clearly communicated and freely available resource explaining the INLA + SPDE approach and its application.
+
+## Laplace's approximation.
+
+The Laplace approximation is used to approximate the marginal distribution of a latent function $f(x)$ taken from a joint posterior.
+
+Include some derivation here based on Gaussian process?? See Vanhtalo 2010, Rue 2009, Lindgren 2011, Bolin 2011, Cameletti 2013, Simpson 2016.
+
 ## INLA
+
+INLA is a numerical approximation based on [@rue2009].
+
+For software: Illian 2013, Rue 2013b, Lindgren 2015.
+
+## SPDE
+
+Cameletti (2013) has a implementation of SPDE and does a nice job describing the theory in an introductory but not basic way.
+ 
+The innovation of the SPDE approach is to develop a GRMF that represents the matern covariance structure, so that inference inherits the faster computational properties of the GFMF and does not suffer the computational cost due to increasing the size of the spatial region and thus the covariance matrix computations.
+
+Lindgren 2011 find that a GF with matern covariance structure is a solution to a SPDE. The GRMF representation allows the use of a sparese matrix represesntation of the covariance structure.
+
+They additionally provide a triangulation of the spatial region for approximation of the process likelihood. Basically, just approximate the density of the spatial process with triangulation in space using a set of basis functions
+
+$$
+u(s) = \sum^m_{k=1}\psi_k(s)w_k
+$$
+with $\psi_k(s)$ basis functions and gaussian weights $w_k$.
+
+This approach can be implemented in the INLA framework.
+
+## Mesh
+
+Finally, [@Simpson2016] improved upon the representation of the GRMF using a dual mush across the region.
+
+From the book by E.T. Krainski et al. (2019):
+  " They develop this solution by considering basis functions carefully chosen to preserve the sparse structure of the resulting precision matrix for the random field at a set of mesh nodes. This provides an explicit link between a continuous random field and a GMRF representation, which allows efficient computations."
