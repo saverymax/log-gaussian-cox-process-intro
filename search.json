@@ -14,7 +14,7 @@
     "href": "intro.html",
     "title": "1  Introduction",
     "section": "",
-    "text": "This is a report about Log Gaussian Cox Processes (LGCP). These are a type of point process models incorporating a Gaussian Random Field. Doing so allows us to take into account spatial or temporal correlation across our region. Statistically, this is quite an advantageous improvement from the Poisson Point Process. However, the inclusion of the random field presents mathematical and computational challenges. We will address some of these here and cover the basic state of the literature regarding these problems.",
+    "text": "This is a blog post about Log Gaussian Cox Processes (LGCP). These are a type of point process models incorporating a Gaussian Random Field. Doing so allows us to take into account spatial or temporal correlation across our region. Statistically, this is quite an advantageous improvement from the Poisson Point Process. However, the inclusion of the random field presents mathematical and computational challenges. We will address some of these here and cover the basic state of the literature regarding these problems .",
     "crumbs": [
       "<span class='chapter-number'>1</span>  <span class='chapter-title'>Introduction</span>"
     ]
@@ -24,7 +24,7 @@
     "href": "theory.html",
     "title": "2  LGCP theory",
     "section": "",
-    "text": "The LGCP incorporates …\nIn the Poisson Point Process the intensity is written as \\[\n\\lambda(s) = \\theta(s)b(s) = \\exp[\\alpha + \\beta'x(s) + \\gamma + \\delta'z(s)]\n\\] In the LGCP we now incorporate a Gaussian Random Field to incorporate spatial correlation between sites \\[\n\\lambda(s) = \\theta(s)b(s) = \\exp[\\alpha + \\beta'x(s) + \\gamma + \\delta'z(s) + w(s)]\n\\] so that the expected value for quadrat \\(A\\) will be the integral over the quadrat: \\[\n\\Delta(A) = \\int_A\\lambda(s)ds = \\int_A \\exp[\\alpha + \\beta'x(s) + \\gamma + \\delta'z(s) + w(s)]ds\n\\]\nHowever, this forces to use a covariance structure that grows in size as the area of interest increases in area. Thus, the computational complexity to estimate such covariance structure as \\(n\\) increases makes this approach inhibitively costly for large regions.",
+    "text": "The LGCP incorporates …\nSpatio-temporal? See (camelitti-2013?) to set up the pieces for the spatial-temporal covariance bits.\nIn the Poisson Point Process the intensity is written as \\[\n\\lambda(s) = \\theta(s)b(s) = \\exp[\\alpha + \\beta'x(s) + \\gamma + \\delta'z(s)]\n\\] In the LGCP we now incorporate a Gaussian Random Field to incorporate spatial correlation between sites \\[\n\\lambda(s) = \\theta(s)b(s) = \\exp[\\alpha + \\beta'x(s) + \\gamma + \\delta'z(s) + w(s)]\n\\] so that the expected value for quadrat \\(A\\) will be the integral over the quadrat: \\[\n\\Delta(A) = \\int_A\\lambdabda(s)ds = \\int_A \\exp[\\alpha + \\beta'x(s) + \\gamma + \\delta'z(s) + w(s)]ds\n\\]\nHowever, this forces to use a covariance structure that grows in size as the area of interest increases in area. Thus, the computational complexity to estimate such covariance structure as \\(n\\) increases makes this approach inhibitively costly for large regions. Using MCMC to estimate this model is possible, but slow.\nIntegrated Nested Laplace Approximations have been proposed by (rue-2009?) as a fast way to estimate LGCPs.\n\n3 Covariance Matrices",
     "crumbs": [
       "<span class='chapter-number'>2</span>  <span class='chapter-title'>LGCP theory</span>"
     ]
@@ -34,7 +34,37 @@
     "href": "approximation.html",
     "title": "3  Approximation",
     "section": "",
-    "text": "3.1 INLA",
+    "text": "3.1 Laplace’s approximation.\nThe Laplace approximation is used to approximate the marginal distribution of a latent function \\(f(x)\\) taken from a joint posterior.\nInclude some derivation here based on Gaussian process?? See Vanhtalo 2010, Rue 2009, Lindgren 2011, Bolin 2011, Cameletti 2013, Simpson 2016.",
+    "crumbs": [
+      "<span class='chapter-number'>3</span>  <span class='chapter-title'>Approximation</span>"
+    ]
+  },
+  {
+    "objectID": "approximation.html#inla",
+    "href": "approximation.html#inla",
+    "title": "3  Approximation",
+    "section": "3.2 INLA",
+    "text": "3.2 INLA\nINLA is a numerical approximation based on (rue2009?).\nFor software: Illian 2013, Rue 2013b, Lindgren 2015.",
+    "crumbs": [
+      "<span class='chapter-number'>3</span>  <span class='chapter-title'>Approximation</span>"
+    ]
+  },
+  {
+    "objectID": "approximation.html#spde",
+    "href": "approximation.html#spde",
+    "title": "3  Approximation",
+    "section": "3.3 SPDE",
+    "text": "3.3 SPDE\nCameletti (2013) has a implementation of SPDE and does a nice job describing the theory in an introductory but not basic way.\nThe innovation of the SPDE approach is to develop a GRMF that represents the matern covariance structure, so that inference inherits the faster computational properties of the GFMF and does not suffer the computational cost due to increasing the size of the spatial region and thus the covariance matrix computations.\nLindgren 2011 find that a GF with matern covariance structure is a solution to a SPDE. The GRMF representation allows the use of a sparese matrix represesntation of the covariance structure.\nThey additionally provide a triangulation of the spatial region for approximation of the process likelihood. Basically, just approximate the density of the spatial process with triangulation in space using a set of basis functions\n\\[\nu(s) = \\sum^m_{k=1}\\psi_k(s)w_k\n\\] with \\(\\psi_k(s)\\) basis functions and gaussian weights \\(w_k\\).\nThis approach can be implemented in the INLA framework.",
+    "crumbs": [
+      "<span class='chapter-number'>3</span>  <span class='chapter-title'>Approximation</span>"
+    ]
+  },
+  {
+    "objectID": "approximation.html#mesh",
+    "href": "approximation.html#mesh",
+    "title": "3  Approximation",
+    "section": "3.4 Mesh",
+    "text": "3.4 Mesh\nFinally, (Simpson2016?) improved upon the representation of the GRMF using a dual mush across the region.\nFrom the book by E.T. Krainski et al. (2019): ” They develop this solution by considering basis functions carefully chosen to preserve the sparse structure of the resulting precision matrix for the random field at a set of mesh nodes. This provides an explicit link between a continuous random field and a GMRF representation, which allows efficient computations.”",
     "crumbs": [
       "<span class='chapter-number'>3</span>  <span class='chapter-title'>Approximation</span>"
     ]

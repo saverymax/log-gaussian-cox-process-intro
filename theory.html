@@ -2,7 +2,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
 
 <meta charset="utf-8">
-<meta name="generator" content="quarto-1.4.554">
+<meta name="generator" content="quarto-1.4.555">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
@@ -177,7 +177,13 @@ window.Quarto = {
 <div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
 <!-- margin-sidebar -->
     <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
-        
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">Table of contents</h2>
+   
+  <ul>
+  <li><a href="#covariance-matrices" id="toc-covariance-matrices" class="nav-link active" data-scroll-target="#covariance-matrices"><span class="header-section-number">3</span> Covariance Matrices</a></li>
+  </ul>
+</nav>
     </div>
 <!-- main -->
 <main class="content" id="quarto-document-content">
@@ -202,16 +208,21 @@ window.Quarto = {
 
 
 <p>The LGCP incorporates …</p>
+<p>Spatio-temporal? See <span class="citation" data-cites="camelitti-2013">(<a href="references.html#ref-camelitti-2013" role="doc-biblioref"><strong>camelitti-2013?</strong></a>)</span> to set up the pieces for the spatial-temporal covariance bits.</p>
 <p>In the Poisson Point Process the intensity is written as <span class="math display">\[
 \lambda(s) = \theta(s)b(s) = \exp[\alpha + \beta'x(s) + \gamma + \delta'z(s)]
 \]</span> In the LGCP we now incorporate a Gaussian Random Field to incorporate spatial correlation between sites <span class="math display">\[
 \lambda(s) = \theta(s)b(s) = \exp[\alpha + \beta'x(s) + \gamma + \delta'z(s) + w(s)]
 \]</span> so that the expected value for quadrat <span class="math inline">\(A\)</span> will be the integral over the quadrat: <span class="math display">\[
-\Delta(A) = \int_A\lambda(s)ds = \int_A \exp[\alpha + \beta'x(s) + \gamma + \delta'z(s) + w(s)]ds
+\Delta(A) = \int_A\lambdabda(s)ds = \int_A \exp[\alpha + \beta'x(s) + \gamma + \delta'z(s) + w(s)]ds
 \]</span></p>
-<p>However, this forces to use a covariance structure that grows in size as the area of interest increases in area. Thus, the computational complexity to estimate such covariance structure as <span class="math inline">\(n\)</span> increases makes this approach inhibitively costly for large regions.</p>
+<p>However, this forces to use a covariance structure that grows in size as the area of interest increases in area. Thus, the computational complexity to estimate such covariance structure as <span class="math inline">\(n\)</span> increases makes this approach inhibitively costly for large regions. Using MCMC to estimate this model is possible, but slow.</p>
+<p>Integrated Nested Laplace Approximations have been proposed by <span class="citation" data-cites="rue-2009">(<a href="references.html#ref-rue-2009" role="doc-biblioref"><strong>rue-2009?</strong></a>)</span> as a fast way to estimate LGCPs.</p>
+<section id="covariance-matrices" class="level1" data-number="3">
+<h1 data-number="3"><span class="header-section-number">3</span> Covariance Matrices</h1>
 
 
+</section>
 
 </main> <!-- /main -->
 <script id="quarto-html-after-body" type="application/javascript">
