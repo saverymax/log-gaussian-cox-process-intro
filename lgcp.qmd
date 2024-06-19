@@ -1,19 +1,44 @@
----
-title: "Modelling point patterns with the log-Gaussian Cox process"
-data: today
-author: Max Savery
-format: html
----
+# Implementation of LGCP with INLA and SPDE
+
+To install INLA we run
+```{r}
+#| eval: false
+options(repos = c(getOption("repos"), INLA = "https://inla.r-inla-download.org/R/testing"))
+# Install INLA and dependencies
+install.packages("INLA", dependencies = TRUE)
+remotes::install_version("INLA", version="23.04.24",repos=c(getOption("repos"),INLA="https://inla.r-inla-download.org/R/testing"), dep=TRUE)
+
+if (!require("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+
+BiocManager::install("Rgraphviz")
+# This one
+remotes::install_version("INLA", version="24.05.01-1",repos=c(getOption("repos"),INLA="https://inla.r-inla-download.org/R/stable"), type="binary", dep=TRUE)
+
+Sys.getenv("PATH")
+
+# In the end I downloaded the INLA zip INLA_24.05.01-1.zip and did from https://inla.r-inla-download.org/R/stable/bin/windows/contrib/4.3/
+# I was getting a cp error and I don't know why, if it was related to Rtools path or what. 
+install.packages("C:/Users/msavery/Downloads/INLA_24.05.01-1.zip", repos = NULL, type = "win.binary", lib="C:/Program Files/R/R-4.3.3/library")
+
+```
 
 ```{r}
 #| eval: false
 library(viridis)
 library(hrbrthemes)
-library(cmdstanr) 
-library(bayesplot)
-library(inla)
+#library(cmdstanr) 
+#library(bayesplot)
+library(tidyterra)
+library(INLA)
 source("stan_models/lgcp.R")
+# TODO: Add these files
+#source("presence_only_functions.R")
+#source("surface_functions.R")
 ```
+
+@lindgren2015 is the software paper for INLA.
+
 To install the R-INLA package, run "install.packages("INLA",repos=c(getOption("repos"),INLA="https://inla.r-inla-download.org/R/stable"), dep=TRUE)"
 
 Here we are going to cover the basics of the log-Gaussian Cox Process (INLA), it's approximation using the Integrated Nested Laplace Approximation, and the application of this model to Presence-Only point pattern modelling.
@@ -25,15 +50,28 @@ There are many good references, as this is a somewhat trendy model in ecology.
 - https://www.pymc.io/projects/docs/en/v3.11.4/pymc-examples/examples/case_studies/log-gaussian-cox-process.html   
 
 
-
 ```{r}
 #| label: inla-fit
 #fit the model
+data(SPDEtoy)
+SPDEtoy.sp <- SPDEtoy
+coordinates(SPDEtoy.sp) <- ~ s1 + s2
+
+bubble(SPDEtoy.sp, "y", key.entries = c(5, 7.5, 10, 12.5, 15), 
+  maxsize = 2, xlab = "s1", ylab = "s2")
 dat.inla <- inla(y~x+f(unit, model='iid'), family='poisson',
    data=dat.pred,
    control.family=list(link='log'),
    control.predictor=list(link=1, compute=TRUE),
    control.compute=list(dic=TRUE, cpo=TRUE, waic=TRUE))
+m0 <- inla(y ~ s1 + s2, data = SPDEtoy)
 #examine the regular summary 
-summary(dat.inla)
+summary(m0)
 ```
+
+We can use the 'copy' feature of INLA to model data with different likelihoods but shared parameters.
+
+
+If we use waarnemingen from https://www.gbif.org/dataset/e7cbb0ed-04c6-44ce-ac86-ebe49f4efb28, then cite: 
+
+GBIF.org (27 May 2024) GBIF Occurrence Download https://doi.org/10.15468/dl.n64bpy
