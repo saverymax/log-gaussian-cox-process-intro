@@ -2,12 +2,12 @@
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
 
 <meta charset="utf-8">
-<meta name="generator" content="quarto-1.4.555">
+<meta name="generator" content="quarto-1.5.56">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>Log-Gaussian Cox Processes: Approximations and Usage - 2&nbsp; LGCP theory</title>
+<title>2&nbsp; LGCP theory – Log-Gaussian Cox Processes: Approximations and Usage</title>
 <style>
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
@@ -69,7 +69,7 @@ ul.task-list li input[type="checkbox"] {
   }
 }</script>
 
-  <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
   <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
 
 <script type="text/javascript">
@@ -107,13 +107,13 @@ window.Quarto = {
   <header id="quarto-header" class="headroom fixed-top">
   <nav class="quarto-secondary-nav">
     <div class="container-fluid d-flex">
-      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
         <i class="bi bi-layout-text-sidebar-reverse"></i>
       </button>
         <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./theory.html"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">LGCP theory</span></a></li></ol></nav>
-        <a class="flex-grow-1" role="button" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
         </a>
-      <button type="button" class="btn quarto-search-button" aria-label="" onclick="window.quartoOpenSearch();">
+      <button type="button" class="btn quarto-search-button" aria-label="Search" onclick="window.quartoOpenSearch();">
         <i class="bi bi-search"></i>
       </button>
     </div>
@@ -181,7 +181,7 @@ window.Quarto = {
     <h2 id="toc-title">Table of contents</h2>
    
   <ul>
-  <li><a href="#covariance-matrices" id="toc-covariance-matrices" class="nav-link active" data-scroll-target="#covariance-matrices"><span class="header-section-number">3</span> Covariance Matrices</a></li>
+  <li><a href="#covariance-matrices" id="toc-covariance-matrices" class="nav-link active" data-scroll-target="#covariance-matrices"><span class="header-section-number">2.1</span> Covariance Matrices</a></li>
   </ul>
 </nav>
     </div>
@@ -208,18 +208,28 @@ window.Quarto = {
 
 
 <p>The LGCP incorporates …</p>
-<p>Spatio-temporal? See <span class="citation" data-cites="camelitti-2013">(<a href="references.html#ref-camelitti-2013" role="doc-biblioref"><strong>camelitti-2013?</strong></a>)</span> to set up the pieces for the spatial-temporal covariance bits.</p>
+<p>Spatio-temporal? See <span class="citation" data-cites="camelitti-2013">(<a href="references.html#ref-camelitti-2013" role="doc-biblioref"><strong>camelitti-2013?</strong></a>)</span> to set up the pieces for the spatial-temporal covariance bits. Paula Moraga resources are also very useful.</p>
 <p>In the Poisson Point Process the intensity is written as <span class="math display">\[
 \lambda(s) = \theta(s)b(s) = \exp[\alpha + \beta'x(s) + \gamma + \delta'z(s)]
 \]</span> In the LGCP we now incorporate a Gaussian Random Field to incorporate spatial correlation between sites <span class="math display">\[
 \lambda(s) = \theta(s)b(s) = \exp[\alpha + \beta'x(s) + \gamma + \delta'z(s) + w(s)]
 \]</span> so that the expected value for quadrat <span class="math inline">\(A\)</span> will be the integral over the quadrat: <span class="math display">\[
-\Delta(A) = \int_A\lambdabda(s)ds = \int_A \exp[\alpha + \beta'x(s) + \gamma + \delta'z(s) + w(s)]ds
+\Delta(A) = \int_A\lambda(s)ds = \int_A \exp[\alpha + \beta'x(s) + \gamma + \delta'z(s) + w(s)]ds
 \]</span></p>
 <p>However, this forces to use a covariance structure that grows in size as the area of interest increases in area. Thus, the computational complexity to estimate such covariance structure as <span class="math inline">\(n\)</span> increases makes this approach inhibitively costly for large regions. Using MCMC to estimate this model is possible, but slow.</p>
 <p>Integrated Nested Laplace Approximations have been proposed by <span class="citation" data-cites="rue-2009">(<a href="references.html#ref-rue-2009" role="doc-biblioref"><strong>rue-2009?</strong></a>)</span> as a fast way to estimate LGCPs.</p>
-<section id="covariance-matrices" class="level1" data-number="3">
-<h1 data-number="3"><span class="header-section-number">3</span> Covariance Matrices</h1>
+<p>The SPDE approach represents the continuous Gaussian Field with a discretely indexed Gaussian Markov Random Field, using a basis function defined on a triangulation of the region of interest.</p>
+<section id="covariance-matrices" class="level2" data-number="2.1">
+<h2 data-number="2.1" class="anchored" data-anchor-id="covariance-matrices"><span class="header-section-number">2.1</span> Covariance Matrices</h2>
+<p>From <a href="https://www.youtube.com/watch?v=CCuWHaYxVFg&amp;ab_channel=RConsortium" class="uri">https://www.youtube.com/watch?v=CCuWHaYxVFg&amp;ab_channel=RConsortium</a>: The precision matrix is sparse for Markovian process. Gaussian distributoins with sparse precision matrices are Guassian Markov Random Fields</p>
+<p>From <a href="https://www.youtube.com/watch?v=Tdb5EPczE9E&amp;ab_channel=TomislavHengl%28OpenGeoHubFoundation%29" class="uri">https://www.youtube.com/watch?v=Tdb5EPczE9E&amp;ab_channel=TomislavHengl%28OpenGeoHubFoundation%29</a> and <a href="https://www.paulamoraga.com/book-geospatial/sec-geostatisticaldatatheory.html" class="uri">https://www.paulamoraga.com/book-geospatial/sec-geostatisticaldatatheory.html</a>. INLA computes the posterior marginals for the latent Guassian field and the hyperparameters. <span class="math display">\[
+p(x_i|y) = \int p(x_i|\theta,y)p(\theta|y)d\theta
+\]</span> ## Mesh</p>
+<p>The mesh is is used to project the discrete GRMF to the continuous GF using some spatial weights defined at the vertices of the mesh (did I say that right?). From the Moraga tutorial above, she says the continuous process is estimated using a weighted average of the process at the vertices of the discrete triangulation mesh.</p>
+<p>The projection matrix maps the GMRF from the observations to the triangulation nodes. The observation will be the weighted average using the weights and values from the triangulation and projection matrix. <span class="math display">\[
+S(x_i) \approx \sum^G_{g=1}A_{ig}S_g
+\]</span></p>
+<p>Simpson 2016</p>
 
 
 </section>
@@ -260,18 +270,7 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
     }
     return false;
   }
-  const clipboard = new window.ClipboardJS('.code-copy-button', {
-    text: function(trigger) {
-      const codeEl = trigger.previousElementSibling.cloneNode(true);
-      for (const childEl of codeEl.children) {
-        if (isCodeAnnotation(childEl)) {
-          childEl.remove();
-        }
-      }
-      return codeEl.innerText;
-    }
-  });
-  clipboard.on('success', function(e) {
+  const onCopySuccess = function(e) {
     // button target
     const button = e.trigger;
     // don't keep focus
@@ -303,7 +302,29 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
     }, 1000);
     // clear code selection
     e.clearSelection();
+  }
+  const getTextToCopy = function(trigger) {
+      const codeEl = trigger.previousElementSibling.cloneNode(true);
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+  }
+  const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+    text: getTextToCopy
   });
+  clipboard.on('success', onCopySuccess);
+  if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+    // For code content inside modals, clipBoardJS needs to be initialized with a container option
+    // TODO: Check when it could be a function (https://github.com/zenorocha/clipboard.js/issues/860)
+    const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+      text: getTextToCopy,
+      container: window.document.getElementById('quarto-embedded-source-code-modal')
+    });
+    clipboardModal.on('success', onCopySuccess);
+  }
     var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
     var mailtoRegex = new RegExp(/^mailto:/);
       var filterRegex = new RegExp('/' + window.location.host + '/');
@@ -311,7 +332,7 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
         return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
     }
     // Inspect non-navigation links and adorn them if external
- 	var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool)');
+ 	var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
     for (var i=0; i<links.length; i++) {
       const link = links[i];
       if (!isInternal(link.href)) {
