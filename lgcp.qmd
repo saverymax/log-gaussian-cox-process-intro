@@ -27,11 +27,14 @@ install.packages("C:/Users/msavery/Downloads/INLA_24.05.01-1.zip", repos = NULL,
 #| eval: false
 library(viridis)
 library(hrbrthemes)
+library(ggplot2)
 #library(cmdstanr) 
 #library(bayesplot)
 library(tidyterra)
+library(terra)
 library(INLA)
-source("stan_models/lgcp.R")
+library(inlabru)
+#source("stan_models/lgcp.R")
 # TODO: Add these files
 #source("presence_only_functions.R")
 #source("surface_functions.R")
@@ -49,7 +52,7 @@ There are many good references, as this is a somewhat trendy model in ecology.
 - https://www.precision-analytics.ca/articles/a-gentle-inla-tutorial/#1-bayesian-inference    
 - https://www.pymc.io/projects/docs/en/v3.11.4/pymc-examples/examples/case_studies/log-gaussian-cox-process.html   
 
-
+Below is taken from <https://becarioprecario.bitbucket.io/spde-gitbook/ch-INLA.html>.
 ```{r}
 #| label: inla-fit
 #fit the model
@@ -59,14 +62,370 @@ coordinates(SPDEtoy.sp) <- ~ s1 + s2
 
 bubble(SPDEtoy.sp, "y", key.entries = c(5, 7.5, 10, 12.5, 15), 
   maxsize = 2, xlab = "s1", ylab = "s2")
-dat.inla <- inla(y~x+f(unit, model='iid'), family='poisson',
-   data=dat.pred,
-   control.family=list(link='log'),
-   control.predictor=list(link=1, compute=TRUE),
-   control.compute=list(dic=TRUE, cpo=TRUE, waic=TRUE))
+#dat.inla <- inla(y~x+f(unit, model='iid'), family='poisson',
+#   data=dat.pred,
+#   control.family=list(link='log'),
+#   control.predictor=list(link=1, compute=TRUE),
+#   control.compute=list(dic=TRUE, cpo=TRUE, waic=TRUE))
 m0 <- inla(y ~ s1 + s2, data = SPDEtoy)
 #examine the regular summary 
 summary(m0)
+```
+Then look at an inlabru example, from <https://inlabru-org.github.io/inlabru/articles/2d_lgcp_covars.html>
+
+How do we use inlabru? 
+```{r inlabru}
+data(gorillas_sf, package = "inlabru")
+nests <- gorillas_sf$nests
+mesh <- gorillas_sf$mesh
+boundary <- gorillas_sf$boundary
+gcov <- gorillas_sf_gcov()
+ggplot() +
+  gg(gcov$vegetation) +
+  gg(boundary, alpha = 0.2) +
+  gg(nests, color = "white", cex = 0.5)
+# with the mesh
+ggplot() +
+  gg(gcov$vegetation) +
+  gg(mesh) +
+  gg(boundary, alpha = 0.2) +
+  gg(nests, color = "white", cex = 0.5)
+comp1 <- geometry ~ vegetation(gcov$vegetation, model = "factor_full") - 1
+comp1alt <- geometry ~ vegetation(gcov$vegetation, model = "factor_contrast") + Intercept(1)
+fit1 <- lgcp(comp1, nests, samplers = boundary, domain = list(geometry = mesh))
+pred.df <- fm_pixels(mesh, mask = boundary)
+int1 <- predict(fit1, pred.df, ~ exp(vegetation))
+
+ggplot() +
+  gg(int1, geom = "tile") + # gg() with sf points and geom = "tile" plots a raster
+  gg(boundary, alpha = 0, lwd = 2) +
+  gg(nests, color = "DarkGreen")
+```
+Look at a spacetime example, from <https://inlabru-org.github.io/inlabru/articles/2d_lgcp_spatiotemporal.html>.
+The temporal aspect is a bit simple: Just some sort of indicator for one of four seasons.
+```{r space-time}
+data(mrsea, package = "inlabru")
+ggplot() +
+  gg(mrsea$mesh) +
+  gg(mrsea$boundary) +
+  gg(mrsea$samplers) +
+  gg(mrsea$points, size = 0.5) +
+  facet_wrap(~season) +
+  ggtitle("MRSea observation seasons")
+# Separate integration meshes for each season
+mrsea
+ips <- fm_int(
+  domain = list(coordinates = mrsea$mesh, season = 1:4),
+  samplers = mrsea$samplers
+)
+ggplot() +
+  gg(mrsea$mesh) +
+  gg(ips, aes(size = weight)) +
+  scale_size_area(max_size = 1) +
+  facet_wrap(~season)
+matern <- inla.spde2.pcmatern(mrsea$mesh,
+  prior.sigma = c(0.1, 0.01),
+  prior.range = c(10, 0.01)
+)
+
+cmp <- coordinates + season ~ Intercept(1) +
+  mySmooth(
+    coordinates,
+    model = matern,
+    group = season,
+    ngroup = 4
+  )
+
+fit <- lgcp(cmp,
+  data = mrsea$points,
+  samplers = mrsea$samplers,
+  domain = list(
+    coordinates = mrsea$mesh,
+    season = seq_len(4)
+  )
+)
+ppxl <- fm_pixels(mrsea$mesh, mask = mrsea$boundary, format = "sp")
+ppxl
+ggplot() +
+geom_sf(data=as(ppxl, "sf"))
+
+ppxl_all <- fm_cprod(ppxl, data.frame(season = seq_len(4)))
+ppxl_all
+plot(ppxl_all)
+class(ppxl_all)
+lambda1 <- predict(
+  fit,
+  ppxl_all,
+  ~ data.frame(season = season, lambda = exp(mySmooth + Intercept))
+)
+lambda1
+pl1 <- ggplot() +
+  gg(as(lambda1, "SpatialPixelsDataFrame"), aes(fill = q0.5)) +
+  gg(mrsea$points, size = 0.3) +
+  facet_wrap(~season) +
+  coord_equal()
+pl1
+```
+Finally look at the example from <https://becarioprecario.bitbucket.io/spde-gitbook/ch-spacetime.html#discrete-time-domain>.
+
+Another interesting example is here <https://becarioprecario.bitbucket.io/inla-gitbook/ch-temporal.html#sec:spacetime>. In the section [here]<https://becarioprecario.bitbucket.io/inla-gitbook/ch-temporal.html#tab:controlgroup> there is a good example of how to provide arguments for the group option, the temporal index.
+
+I would like to have this done in INLABRU. More specifically, the model of Cameletti 2013, with autoregressive time + spatial covariance conditional on time $t$.
+
+As of 12-08-2024, code is not working due to some deprecations.
+```{r discrete-time-space}
+
+# Book function copied from spde-book-functions.R
+load('data/prmesh1.RData')
+book.rspde <- function(coords, sigma=1, range, variance=sigma^2, alpha=2, kappa = sqrt(8*(alpha-1))/range, n=1, mesh, 
+                  verbose=FALSE, seed, return.attributes=FALSE) {
+    t0 <- Sys.time()
+    theta <- c(-0.5*log(4*pi*variance*kappa^2), log(kappa))
+    if (verbose) cat('theta =', theta, '\n')
+    if (missing(mesh)) {
+        mesh.pars <- c(0.5, 1, 0.1, 0.5, 1)*sqrt(alpha-ncol(coords)/2)/kappa 
+        if (verbose) cat('mesh.pars =', mesh.pars, '\n')
+        attributes <- list(
+            mesh=inla.mesh.2d(,
+                coords[chull(coords), ], max.edge=mesh.pars[1:2], 
+                cutoff=mesh.pars[3], offset=mesh.pars[4:5]))
+        if (verbose) cat('n.mesh =', attributes$mesh$n, '\n')
+    }
+    else attributes <- list(mesh=mesh)
+    attributes$spde <- inla.spde2.matern(attributes$mesh, alpha=alpha)
+    attributes$Q <- inla.spde2.precision(attributes$spde, theta=theta)
+    attributes$A <- inla.mesh.project(mesh=attributes$mesh, loc=coords)$A
+    if (n==1) 
+        result <- drop(attributes$A%*%inla.qsample(
+            Q=attributes$Q,
+            constr=attributes$spde$f$extraconstr))
+    t1 <- Sys.time() 
+    result <- inla.qsample(n, attributes$Q, 
+                           seed=ifelse(missing(seed), 0, seed), 
+                           constr=attributes$spde$f$extraconstr) 
+    if (nrow(result)<nrow(attributes$A)) {
+        result <- rbind(result, matrix(
+            NA, nrow(attributes$A)-nrow(result), ncol(result)))
+        dimnames(result)[[1]] <- paste('x', 1:nrow(result), sep='')
+        for (j in 1:ncol(result)) 
+            result[, j] <- drop(attributes$A%*%
+                                result[1:ncol(attributes$A),j])
+    }
+    else {
+        for (j in 1:ncol(result)) 
+            result[1:nrow(attributes$A), j] <-
+                drop(attributes$A%*%result[,j]) 
+        result <- result[1:nrow(attributes$A), ]
+    }
+    t2 <- Sys.time()
+    attributes$cpu <- c(prep=t1-t0, sample=t2-t1, total=t2-t0)
+    if (return.attributes) 
+        attributes(result) <- c(attributes(result), attributes)
+    return(drop(result))
+}
+
+data(PRborder)
+k <- 12
+coords <- as.matrix(PRprec[sample(1:nrow(PRprec)), 1:2])
+params <- c(variance = 1, kappa = 1) 
+
+set.seed(1)
+x.k <- book.rspde(coords, range = sqrt(8) / params[2], 
+  sigma = sqrt(params[1]), n = k, mesh = prmesh1,
+  return.attributes = TRUE)
+rho <- 0.7
+x <- x.k
+for (j in 2:k) 
+  x[, j] <- rho * x[, j - 1] + sqrt(1 - rho^2) * x.k[, j]
+n <- nrow(coords)
+set.seed(2)
+ccov <- factor(sample(LETTERS[1:3], n * k, replace = TRUE))
+beta <- -1:1
+sd.y <- 0.1
+y <- beta[unclass(ccov)] + x + rnorm(n * k, 0, sd.y)
+isel <- sample(1:(n * k), n * k / 2) 
+dat <- data.frame(y = as.vector(y), w = ccov, 
+  time = rep(1:k, each = n), 
+  xcoo = rep(coords[, 1], k), 
+  ycoo = rep(coords[, 2], k))[isel, ] 
+spde <- inla.spde2.pcmatern(mesh = prmesh1, 
+  prior.range = c(0.5, 0.01), # P(range < 0.05) = 0.01
+  prior.sigma = c(1, 0.01)) # P(sigma > 1) = 0.01
+iset <- inla.spde.make.index('i', n.spde = spde$n.spde,
+  n.group = k)
+A <- inla.spde.make.A(mesh = prmesh1,
+  loc = cbind(dat$xcoo, dat$ycoo), group = dat$time) 
+sdat <- inla.stack(
+  data = list(y = dat$y), 
+  A = list(A, 1), 
+  effects = list(iset, w = dat$w),
+  tag = 'stdata') 
+h.spec <- list(rho = list(prior = 'pc.cor1', param = c(0, 0.9)))
+# Model formula
+formulae <- y ~ 0 + w + f(i, model = spde, group = i.group, 
+  control.group = list(model = 'ar1', hyper = h.spec)) 
+# PC prior on the autoreg. param.
+prec.prior <- list(prior = 'pc.prec', param = c(1, 0.01))
+# Model fitting
+res <- inla(formulae,  data = inla.stack.data(sdat), 
+  control.predictor = list(compute = TRUE,
+    A = inla.stack.A(sdat)), 
+  control.family = list(hyper = list(prec = prec.prior)), 
+  control.fixed = list(expand.factor.strategy = 'inla'))
+cbind(Obs. = tapply(dat$y, dat$w, mean), res$summary.fixed[, -7])
+idat <- inla.stack.index(sdat, 'stdata')$data
+cor(dat$y, res$summary.linear.predictor$mean[idat])
+stepsize <- 4 * 1 / 111
+nxy <- round(c(diff(range(coords[, 1])), 
+  diff(range(coords[, 2]))) / stepsize)
+projgrid <- inla.mesh.projector(
+  prmesh1, xlim = range(coords[, 1]), 
+  ylim = range(coords[, 2]), dims = nxy)
+xmean <- list()
+for (j in 1:k)
+  xmean[[j]] <- inla.mesh.project(
+    projgrid, res$summary.random$i$mean[iset$i.group == j])
+library(splancs)
+xy.in <- inout(projgrid$lattice$loc, 
+  cbind(PRborder[, 1], PRborder[, 2]))
+```
+A first start for air pollution monitoring, in INLA. Need to do in INLABRU but there isn't a tutorial example for a continuous variable.
+
+Data from <https://www.paulamoraga.com/book-spatial/data/PM25USA2022.csv>
+<https://www.paulamoraga.com/book-spatial/sec-geostatisticaldataSPDE.html>
+
+The model fit here is
+$$
+Y_i \sim N(u_i, \sigma^2)\\
+u_i = \beta_0\cdot\text{temp} + \beta_1\cdot\text{precipitation}_i + S(x_i).
+$$
+So it's a typical gaussian process with latent mean structure (not sure whats the statistical way to say this; potentially a spatial random effect). This is what Moraga calls "geostatistical data", that is, measurements taken at discrete locations but used to describe or estimate a spatially continuous process, such as air pollution. It is very similar to a mixed model with a random effect. In this case the random effect is gaussian distributed and spatially indexed. 
+
+We approximate a spatially continuous process with a discrete process, using the triangulation mesh. 
+
+```{r air-pollution}
+library(sf)
+library(rnaturalearth)
+library(terra)
+library(ggplot2)
+library(viridis)
+library("patchwork")
+library(geodata)
+f <- file.path("https://www.paulamoraga.com/book-spatial/",
+               "data/PM25USA2022.csv")
+d <- read.csv(f)
+d <- st_as_sf(d, coords = c("longitude", "latitude"))
+st_crs(d) <- "EPSG:4326"
+map <- ne_countries(type = "countries",
+                    country = "United States of America",
+                    scale = "medium", returnclass = "sf")
+map <- st_crop(map, xmin = -130, xmax = -60, ymin = 18, ymax = 72)
+d <- st_filter(d, map)
+nrow(d)
+ggplot() + geom_sf(data = map) +
+  geom_sf(data = d, aes(col = value)) +
+  scale_color_viridis()
+# raster grid covering map
+grid <- terra::rast(map, nrows = 100, ncols = 100)
+# coordinates of all cells
+xy <- terra::xyFromCell(grid, 1:ncell(grid))
+# transform points to a sf object
+dp <- st_as_sf(as.data.frame(xy), coords = c("x", "y"),
+                 crs = st_crs(map))
+
+# indices points within the map
+indicespointswithin <- which(st_intersects(dp, map,
+                                           sparse = FALSE))
+
+# points within the map
+dp <- st_filter(dp, map)
+
+# plot
+ggplot() + geom_sf(data = map) +
+  geom_sf(data = dp)
+# With geodata library
+covtemp <- worldclim_global(var = "tavg", res = 10,
+                            path = tempdir())
+covprec <- worldclim_global(var = "prec", res = 10,
+                            path = tempdir())
+# Extract at observed locations
+d$covtemp <- extract(mean(covtemp), st_coordinates(d))[, 1]
+d$covprec <- extract(mean(covprec), st_coordinates(d))[, 1]
+# Extract at prediction locations
+dp$covtemp <- extract(mean(covtemp), st_coordinates(dp))[, 1]
+dp$covprec <- extract(mean(covprec), st_coordinates(dp))[, 1]
+# Using patchwork lib
+p1 <- ggplot() + geom_sf(data = map) +
+  geom_sf(data = d, aes(col = covtemp)) +
+  scale_color_viridis()
+p2 <- ggplot() + geom_sf(data = map) +
+  geom_sf(data = d, aes(col = covprec)) +
+  scale_color_viridis()
+p1 / p2
+st_crs("EPSG:3857")$proj4string
+projMercator<-"+proj=merc +a=6378137 +b=6378137 +lat_ts=0 +lon_0=0
++x_0=0 +y_0=0 +k=1 +units=km +nadgrids=@null +wktext +no_defs"
+d <- st_transform(d, crs = projMercator)
+dp <- st_transform(dp, crs = projMercator)
+# Observed coordinates
+coo <- st_coordinates(d)
+
+# Predicted coordinates
+coop <- st_coordinates(dp)
+summary(dist(coo)) # summary of distances between locations
+mesh <- inla.mesh.2d(loc = coo, max.edge = c(200, 500),
+                     cutoff = 1)
+mesh$n
+plot(mesh)
+points(coo, col = "red")
+axis(1)
+axis(2)
+spde <- inla.spde2.matern(mesh = mesh, alpha = 2, constr = TRUE)
+indexs <- inla.spde.make.index("s", spde$n.spde)
+lengths(indexs)
+A <- inla.spde.make.A(mesh = mesh, loc = coo)
+Ap <- inla.spde.make.A(mesh = mesh, loc = coop)
+# stack for estimation stk.e
+stk.e <- inla.stack(tag = "est",
+data = list(y = d$value), A = list(1, A),
+effects = list(data.frame(b0 = rep(1, nrow(A)),
+covtemp = d$covtemp, covprec = d$covprec),
+s = indexs))
+
+# stack for prediction stk.p
+stk.p <- inla.stack(tag = "pred",
+data = list(y = NA), A = list(1, Ap),
+effects = list(data.frame(b0 = rep(1, nrow(Ap)),
+covtemp = dp$covtemp, covprec = dp$covprec),
+s = indexs))
+
+# stk.full has stk.e and stk.p
+stk.full <- inla.stack(stk.e, stk.p)
+# The actual model is not so hard to specify once the data structures and mesh are in place
+# f() is the latent/random effect
+formula <- y ~ 0 + b0 + covtemp + covprec + f(s, model = spde)
+res <- inla(formula, family = "gaussian",
+       data = inla.stack.data(stk.full),
+       control.predictor = list(compute = TRUE,
+                                A = inla.stack.A(stk.full)),
+       control.compute = list(return.marginals.predictor = TRUE))
+res$summary.fixed
+index <- inla.stack.index(stack = stk.full, tag = "pred")$data
+pred_mean <- res$summary.fitted.values[index, "mean"]
+pred_ll <- res$summary.fitted.values[index, "0.025quant"]
+pred_ul <- res$summary.fitted.values[index, "0.975quant"]
+grid$mean <- NA
+grid$ll <- NA
+grid$ul <- NA
+
+grid$mean[indicespointswithin] <- pred_mean
+grid$ll[indicespointswithin] <- pred_ll
+grid$ul[indicespointswithin] <- pred_ul
+  
+summary(grid) # negative values for the lower limit
+library(rasterVis)
+levelplot(grid, layout = c(1, 3),
+names.attr = c("Mean", "2.5 percentile", "97.5 percentile"))
 ```
 
 We can use the 'copy' feature of INLA to model data with different likelihoods but shared parameters.
