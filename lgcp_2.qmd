@@ -1,0 +1,4 @@
+
+# Implementation of LGCP with INLA and SPDE
+
+Starting from scratch from inla_1.qmd coding up INLA/INLABRU examples!

@@ -39,6 +39,7 @@ library(inlabru)
 #source("presence_only_functions.R")
 #source("surface_functions.R")
 ```
+<https://www.youtube.com/watch?v=a8QvxCjWieg> lecture here Havard Rue says "If you go through the math, it's too good to be true. Everything you hope for turns out to be true." 
 
 @lindgren2015 is the software paper for INLA.
 
@@ -73,7 +74,7 @@ summary(m0)
 ```
 Then look at an inlabru example, from <https://inlabru-org.github.io/inlabru/articles/2d_lgcp_covars.html>
 
-How do we use inlabru? 
+How do we use inlabru? Depends on if we are using SP or SF data structures
 ```{r inlabru}
 data(gorillas_sf, package = "inlabru")
 nests <- gorillas_sf$nests
@@ -101,6 +102,31 @@ ggplot() +
   gg(boundary, alpha = 0, lwd = 2) +
   gg(nests, color = "DarkGreen")
 ```
+And show the example with sp data structure.
+```{r sp-inlabru}
+data(gorillas, package = "inlabru")
+nests <- gorillas$nests
+mesh <- gorillas$mesh
+boundary <- gorillas$boundary
+ggplot() +
+  geom_fm(data = mesh) +
+  gg(nests) +
+  gg(boundary, fill = "red", alpha = 0.2) +
+  ggtitle("Points")
+matern <- inla.spde2.pcmatern(
+  mesh,
+  prior.sigma = c(0.1, 0.01),
+  prior.range = c(5, 0.01)
+)
+
+nests
+class(nests)
+cmp <- coordinates ~
+  mySmooth(coordinates, model = matern) +
+  Intercept(1)
+
+fit <- lgcp(cmp, nests, samplers = boundary, domain = list(coordinates = mesh))
+```
 Look at a spacetime example, from <https://inlabru-org.github.io/inlabru/articles/2d_lgcp_spatiotemporal.html>.
 The temporal aspect is a bit simple: Just some sort of indicator for one of four seasons.
 ```{r space-time}
@@ -113,7 +139,7 @@ ggplot() +
   facet_wrap(~season) +
   ggtitle("MRSea observation seasons")
 # Separate integration meshes for each season
-mrsea
+
 ips <- fm_int(
   domain = list(coordinates = mrsea$mesh, season = 1:4),
   samplers = mrsea$samplers
@@ -144,6 +170,7 @@ fit <- lgcp(cmp,
     season = seq_len(4)
   )
 )
+summary(fit)
 ppxl <- fm_pixels(mrsea$mesh, mask = mrsea$boundary, format = "sp")
 ppxl
 ggplot() +

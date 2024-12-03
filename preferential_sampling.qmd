@@ -1,0 +1,258 @@
+# Preferential Sampling 
+
+
+In the collection of point observations, an issue of bias is inherent to the collection process. Where it is convenient or the spatial field has a certain intensity that is more interesting from a measurement perspective (such as areas of high air pollution in an urban environment), data will be collected there. There will then be an over-representation of measurements at these convenient or interesting areas. To incorporate this bias, we must consider approaches to correct the estimation of the spatial field or point process. 
+
+In Diggle 2010, the authors concern themselves with the the prediction of a continuous spatial field $S$ based off of measurements $Y_i$ at locations $x_i$. 
+  
+  From Diggle 2010: We define a geostatistical model as a two-level hierarchical linear model. We define value $S(x_i), i=1,...,n$ at location $x_i$ of a latent Gaussian stochastic process. We observe value $Y_i, i=1,...,n$, which is normally distributed with mean $\mu + S(x_i)$, with shared variance $\tau_i$.
+S.x/ but allowing a GLM (McCullagh and Nelder, 1989) for the mutually independent conditional distributions of the Yi given $S(x_i)$. As a convenient shorthand notation to describe the hierarchical structure of a geostatistical model, we use [·] to mean ‘the distribution of’ and write S = {S.x/ : x ∈ R2}, X = .x1,...,xn/, S.X/ = {S.x1/,...,S.xn/} and Y = .Y1,...,Yn/. Then, the model of Diggle et al. (1998) implicitly treats X as being deterministic and has the structure [S, Y ] = [S][Y |S.X/] = [S][Y1|S.x1/][Y2|S.x2/] ...[Yn|S.xn/]. Furthermore, in model (1) the [Yi|S.xi/] are univariate Gaussian distributions with means μ + S.xi/ and common variance τ 2. This model is defined as
+$$
+Y_i = \mu + S(x_i) + Z_i 
+$$
+where $Z$ is (Gaussian) measurement error in $Y$.
+  
+In Diggle's formulation, preferential occurs when the product of the independent distributions are no equal to the joint:
+$$
+[S,X]\ne[S][X]
+$$
+A uniform, non-preferential design one would be where the locations are sampled uniformly across the spatial region, such as a completely random design on one placed evenly across a lattice. This is in contrast to a non-uniform, non-preferential design where there is no preferential site selection but the sites are placed according to a distribution other than normal. As long as the locations are chosen in such a way that they are independent of the pattern of $S(x_i)$, then the design does not display preferentiality. Interestingly, the authors indicate the preferentiality does not occur by way of a dependence of both S and X on a shared set of parameters. 
+
+To clarify, Diggle makes the clever yet obvious/simple factorization:
+$$
+[S,X,Y]=[S][X|S][Y|S]
+$$
+In this formulation, measurements $Y$ are independent of the locations $X$. This lies in contrast to the form
+$$
+[S,X,Y]=[S][X|S][Y|X,S]
+$$
+
+Or it's form in terms of the geostatistical model:
+$$
+[S,X,Y]=[S][X|S][Y|S(X)]
+$$
+In this formulation, the dependence of $S(X)$ on the locations of $X$ cannot be ignored. This is the canonical problem of sampling locations to measure an unknown process when the locations bias the measurements, i.e., preferential sampling. Diggle 2010 forumulates the following solution:
+
+1. Take $S$ as a stationary Gaussian process with mean 0 and variances $\sigma^2$, and some correlation function $\rho(u, \phi)$ of any distance $u$ between two points in the field. 
+2. Conditional on $S$, treat $X$ as an inhomogeneous Poisson process with intensity
+$$
+\lambda(x) = \exp[\alpha + \beta S(x)]
+$$
+3. Finally, conditional on $S$ and $X$, treat Y as a set of mutually independent Gaussian variables
+$$
+Y_i \sim N(\mu + S(x_i), \tau^2).
+$$
+Simple geostatistics as we say in the biz, yet effective enough to demonstrate their point. Note that here Diggle is concerned with the underlying spatial process $S$. Much to my surprise, this is in fact the process that we are collecting data $Y$ to predict/estimate. This will stand slight contrast to the work of Pati 2011, where we are concered in the response variable $Y$ itself. 
+
+In Pati 2011, the authors instead focus on modifying the likelihood of the response variable with the likelihood of the locations of the measurements, performed in a Bayesian setting. They use a joint model:
+$$
+Y_i|x_i \sim N(\eta(x_i) + a\xi(x_i), \sigma^2), \;\;\; p(x_i) = \frac{\exp[\xi(s_i)]}{\int_d\exp[\xi(s)]ds}, \;(i=1,...,n)
+$$
+with $p(s)$ being the location density. $a\xi(s_i)$ is an adjustment to the mean surface due to the informative sampling. We then have the parameterization
+$$
+\xi(x_i) = x_i^T\beta_{\xi} + \xi_r(x_i)
+$$
+and 
+$$
+\eta(x_i) = x_i^T\beta_{\eta} + \eta_r(x_i)
+$$
+where $\xi_r$ and $\eta_r$ are the zero-mean residuals and the $\beta$s are the vectors of parameters for the vectors of spatial covariates. This gives us the model
+$$
+E[y_i|x_i] = x_i^T(a\beta_{\xi} + \beta_{\eta}) + a\xi_r(x_i) + \eta_r(x_i), \; (i=1,...,n)
+$$
+So we have a correction in the mean for informative sampling by the way of shared spatial covariates, and the correction to the likelihood with the sampling density.
+
+ehhh check are these separate covariates or are the covariates really the same for sampling and for mean?
+
+Then, the sampling density needs to be approximated, particularly the integral over the spatial domain. They take care of that somehow. 
+
+TODO, 12-3-204: Finish writing their paper up, but I realized I need to put the theory to code and write stuff up in
+inla/inlabru to really see how this is working and what it feels like.
+
+
+## Modelling with INLA.
+
+This all then begs the question: How can we model the locations in INLA? Let's see it! We specify a model where the point locations are modelled with a LGCP:
+$$
+\lambda(x) = \exp[\alpha + S(x)]
+$$
+Ah resources here: <https://sites.google.com/a/r-inla.org/www/examples/case-studies/diggle09>
+
+Code below is from part of the paper: <https://sites.google.com/a/r-inla.org/www/examples/case-studies/diggle09/simulation2>
+# TODO: 12-3, let's do this!
+```{r set-up}
+library(inlabru)
+library(INLA)
+library(ggplot2)
+library(sf)
+```
+
+```{r diggle-2010}
+ii=c(1:n,rep(NA,n))     
+
+jj = c(rep(NA,n), 1:n)
+
+alpha = c(rep(0,n), rep(1,n))
+
+mu = c(rep(1,n), rep(0,n))
+```
+Then use the method of <https://onlinelibrary.wiley.com/doi/full/10.1002/ece3.4789> from the github issue <https://github.com/inlabru-org/inlabru/issues/57>:
+```{r maria-pennino-2018}
+# From https://github.com/inlabru-org/inlabru/issues/57
+# and
+# https://inlabru-org.github.io/inlabru/articles/2d_lgcp_multilikelihood.html
+data(shrimp)
+ggplot() + gg(shrimp$mesh) + gg(shrimp$hauls) + coord_equal()
+
+ips = ipoints(shrimp$mesh)
+
+matern <- inla.spde2.pcmatern(shrimp$mesh, 
+                              prior.sigma = c(0.1, 0.01), 
+                              prior.range = c(1, 0.01))
+
+cmp = ~ spde(coordinates, model = matern) + spdeCopy(coordinates, copy = "spde", model = matern, fixed = FALSE) + lgcpIntercept + Intercept
+
+lik_1 <- bru_obs("cp",
+  formula = fml.major,
+  data = gorillas_sf$nests[gorillas_sf$nests$group == "major", ],
+  samplers = gorillas_sf$boundary,
+  domain = list(geometry = gorillas_sf$mesh)
+)
+lik_major <- bru_obs("cp",
+  formula = fml.minor,
+  data = gorillas_sf$nests[gorillas_sf$nests$group == "minor", ],
+  samplers = gorillas_sf$boundary,
+  domain = list(geometry = gorillas_sf$mesh)
+)
+
+lik1 =  bru(components = cmp,
+             data =  shrimp$hauls, 
+             family = "poisson", 
+             formula = catch ~ spde + Intercept)
+
+lik2 =  bru(components = cmp,
+             data =  shrimp$hauls, 
+             family = "cp",
+             ips = ips,
+             formula = coordinates ~ spdeCopy + lgcpIntercept)
+
+fit = bru(components = cmp, lik1, lik2, options = list(max.iter = 1))
+
+pxl = pixels(shrimp$mesh)
+fish.intensity = predict(fit, pxl, ~ exp(spde + Intercept))
+ggplot() + gg(fish.intensity) + gg(shrimp$hauls, size = 0.5)
+
+```
+
+Fortunately, Krainski 2018 shows how to write this model in the INLA frameowk.
+<https://becarioprecario.bitbucket.io/spde-gitbook/ch-lcox.html>
+```{r krainski-2018-chp4}
+library(spatstat)
+library(RandomFields)
+
+book.mesh.dual <- function(mesh) {
+    if (mesh$manifold=='R2') {
+        ce <- t(sapply(1:nrow(mesh$graph$tv), function(i)
+            colMeans(mesh$loc[mesh$graph$tv[i, ], 1:2])))
+        library(parallel)
+        pls <- mclapply(1:mesh$n, function(i) {
+            p <- unique(Reduce('rbind', lapply(1:3, function(k) {
+            j <- which(mesh$graph$tv[,k]==i)
+            if (length(j)>0) 
+            return(rbind(ce[j, , drop=FALSE],
+            cbind(mesh$loc[mesh$graph$tv[j, k], 1] +
+            mesh$loc[mesh$graph$tv[j, c(2:3,1)[k]], 1], 
+            mesh$loc[mesh$graph$tv[j, k], 2] +
+            mesh$loc[mesh$graph$tv[j, c(2:3,1)[k]], 2])/2))
+            else return(ce[j, , drop=FALSE])
+            })))
+            j1 <- which(mesh$segm$bnd$idx[,1]==i)
+            j2 <- which(mesh$segm$bnd$idx[,2]==i)
+            if ((length(j1)>0) | (length(j2)>0)) {
+            p <- unique(rbind(mesh$loc[i, 1:2], p,
+            mesh$loc[mesh$segm$bnd$idx[j1, 1], 1:2]/2 +
+            mesh$loc[mesh$segm$bnd$idx[j1, 2], 1:2]/2, 
+            mesh$loc[mesh$segm$bnd$idx[j2, 1], 1:2]/2 +
+            mesh$loc[mesh$segm$bnd$idx[j2, 2], 1:2]/2))
+            yy <- p[,2]-mean(p[,2])/2-mesh$loc[i, 2]/2
+            xx <- p[,1]-mean(p[,1])/2-mesh$loc[i, 1]/2
+            }
+            else {
+            yy <- p[,2]-mesh$loc[i, 2]
+            xx <- p[,1]-mesh$loc[i, 1]
+            }
+            Polygon(p[order(atan2(yy,xx)), ])
+        })
+        return(SpatialPolygons(lapply(1:mesh$n, function(i)
+            Polygons(list(pls[[i]]), i))))
+    }
+    else stop("It only works for R2!")
+}
+
+
+win <- owin(c(0, 3), c(0, 3))
+npix <- 300
+spatstat.options(npixel = npix)
+beta0 <- 3
+exp(beta0) * diff(range(win$x)) * diff(range(win$y))
+sigma2x <- 0.2
+range <- 1.2
+nu <- 1
+lg.s <- rLGCP('matern', beta0, var = sigma2x,
+  scale = range / sqrt(8), nu = nu, win = win)
+xy <- cbind(lg.s$x, lg.s$y)[, 2:1]
+(n <- nrow(xy))
+Lam <- attr(lg.s, 'Lambda')
+rf.s <- log(Lam$v)
+plot(rf.s)
+summary(as.vector(rf.s))
+loc.d <- 3 * cbind(c(0, 1, 1, 0, 0), c(0, 0, 1, 1, 0))
+mesh <- inla.mesh.2d(loc.domain = loc.d, offset = c(0.3, 1), 
+  max.edge = c(0.3, 0.7), cutoff = 0.05)
+nv <- mesh$n
+plot(mesh)
+spde <- inla.spde2.pcmatern(mesh = mesh,
+  # PC-prior on range: P(practic.range < 0.05) = 0.01
+  prior.range = c(0.05, 0.01),
+  # PC-prior on sigma: P(sigma > 1) = 0.01
+  prior.sigma = c(1, 0.01)) 
+dmesh <- book.mesh.dual(mesh)
+plot(dmesh)
+domain.polys <- Polygons(list(Polygon(loc.d)), '0')
+domainSP <- SpatialPolygons(list(domain.polys))
+domain_sf <- st_as_sf(domainSP)
+mesh_sf <- st_as_sf(dmesh)
+w <- sapply(1:length(dmesh), function(i) {
+  if(length(st_intersects(mesh_sf[100,], domain_sf)[[1]])>0){
+    return(sf::st_area(sf::st_intersection(mesh_sf[i, ], domain_sf)))
+  }
+  else return(0)
+})
+sum(unlist(w))
+y.pp <- rep(0:1, c(nv, n))
+e.pp <- c(w, rep(0, n)) 
+imat <- Diagonal(nv, rep(1, nv))
+lmat <- inla.spde.make.A(mesh_sf, xy)
+A.pp <- rbind(imat, lmat)
+stk.pp <- inla.stack(
+  data = list(y = y.pp, e = e.pp), 
+  A = list(1, A.pp),
+  effects = list(list(b0 = rep(1, nv + n)), list(i = 1:nv)),
+  tag = 'pp')
+pp.res <- inla(y ~ 0 + b0 + f(i, model = spde), 
+  family = 'poisson', data = inla.stack.data(stk.pp), 
+  control.predictor = list(A = inla.stack.A(stk.pp)), 
+  E = inla.stack.data(stk.pp)$e)
+
+# Then for preferential sampling:
+z <- log(t(Lam$v)[do.call('cbind',
+  nearest.pixel(xy[, 1], xy[, 2], Lam))])
+summary(z)
+```
+TODO: 12-4: Different examples of preferential sampling: From Krainski, from the INLA examples, and from INLABRU with multiple likelihoods. Straighten these out, compare inla and inlabru. The preferential sampling is a good usecase of combining multiple likelihoods which I needed to do anyway. I'm just figuring out the meshes and what is possible in inla v inlabru. 
+
+And then implement for air pollution!
+
+
+
+
