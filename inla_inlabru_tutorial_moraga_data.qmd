@@ -1,0 +1,324 @@
+
+# Implementation of Spatial model with INLA and SPDE
+
+Starting from scratch from inla_1.qmd, coding up INLA/INLABRU examples! Because the previous one was too chaotic.
+
+I found https://becarioprecario.bitbucket.io/spde-gitbook/ch-lcox.html and https://becarioprecario.bitbucket.io/inla-gitbook/ch-INLA.html good for details about inla and such specifications, but https://www.paulamoraga.com/book-spatial/sec-geostatisticaldataSPDE.html more clear in general. The example for inla is from Moraga.
+
+This initial part follows that of the book of Moraga, initially with her data and then with our own.
+
+Data from <https://www.paulamoraga.com/book-spatial/data/PM25USA2022.csv>
+
+The model fit here is
+$$
+Y_i \sim N(u_i, \sigma^2)\\
+u_i = \beta_0\cdot\text{temp} + \beta_1\cdot\text{precipitation}_i + S(x_i).
+$$
+So it's a typical Gaussian process with latent mean structure (not sure whats the statistical way to say this; potentially a spatial random effect). This is what Moraga calls "geostatistical data", that is, measurements taken at discrete locations but used to describe or estimate a spatially continuous process, such as air pollution. It is very similar to a mixed model with a random effect. In this case the random effect is gaussian distributed and spatially indexed. 
+
+We approximate a spatially continuous process with a discrete process, using the triangulation mesh. 
+
+
+```{r set-up}
+library(INLA)
+library(inlabru)
+library(sf)
+library(rnaturalearth)
+library(ggplot2)
+library(viridis)
+library(terra)
+f <- file.path("data/PM25USA2022.csv")
+d <- read.csv(f)
+d <- st_as_sf(d, coords = c("longitude", "latitude"))
+st_crs(d) <- "EPSG:4326"
+```
+Then get a map of the US
+```{r map}
+map <- ne_countries(type = "countries",
+                    country = "United States of America",
+                    scale = "medium", returnclass = "sf")
+map <- st_crop(map, xmin = -130, xmax = -60, ymin = 18, ymax = 72)
+d <- st_filter(d, map)
+nrow(d)
+ggplot() + geom_sf(data = map) +
+  geom_sf(data = d, aes(col = value)) +
+  scale_color_viridis()
+```
+
+```{r process-data}
+# raster grid covering map
+grid <- terra::rast(map, nrows = 100, ncols = 100)
+# coordinates of all cells
+xy <- terra::xyFromCell(grid, 1:ncell(grid))
+# transform points to a sf object
+dp <- st_as_sf(as.data.frame(xy), coords = c("x", "y"),
+                 crs = st_crs(map))
+
+# indices points within the map
+indicespointswithin <- which(st_intersects(dp, map,
+                                           sparse = FALSE))
+
+# points within the map
+dp <- st_filter(dp, map)
+
+# plot
+ggplot() + geom_sf(data = map) +
+  geom_sf(data = dp)
+```
+More data process
+```{r process-data-2}
+library(geodata)
+# With geodata library
+covtemp <- worldclim_global(var = "tavg", res = 10,
+                            path = tempdir())
+covprec <- worldclim_global(var = "prec", res = 10,
+                            path = tempdir())
+# Extract at observed locations
+d$covtemp <- extract(mean(covtemp), st_coordinates(d))[, 1]
+d$covprec <- extract(mean(covprec), st_coordinates(d))[, 1]
+# Extract at prediction locations
+dp$covtemp <- extract(mean(covtemp), st_coordinates(dp))[, 1]
+dp$covprec <- extract(mean(covprec), st_coordinates(dp))[, 1]
+# Using patchwork lib
+p1 <- ggplot() + geom_sf(data = map) +
+  geom_sf(data = d, aes(col = covtemp)) +
+  scale_color_viridis()
+p2 <- ggplot() + geom_sf(data = map) +
+  geom_sf(data = d, aes(col = covprec)) +
+  scale_color_viridis()
+p1
+p2
+```
+
+Saw in the forum <https://groups.google.com/g/r-inla-discussion-group/c/z_v2oIh2egs> it's good to work with units of kilometers which is intuitive from previous spatial data work.
+```{r projection}
+st_crs("EPSG:3857")$proj4string
+projMercator<-"+proj=merc +a=6378137 +b=6378137 +lat_ts=0 +lon_0=0
++x_0=0 +y_0=0 +k=1 +units=km +nadgrids=@null +wktext +no_defs"
+d <- st_transform(d, crs = projMercator)
+dp <- st_transform(dp, crs = projMercator)
+# Observed coordinates
+coo <- st_coordinates(d)
+
+# Predicted coordinates
+coop <- st_coordinates(dp)
+summary(dist(coo)) # summary of distances between locations
+```
+Mesh options are from <https://punama.github.io/BDI_INLA/#:~:text=stack%20function.,list%20of%20effects%20(effects).>
+```max.edge``` controls the largest triangle edge length, and providing it with a vector ```c(inner, outer)``` sets the max edge for inside the boundary and outside the boundary. ```cutoff``` is the minimum allowed distance between points. Otherwise, points are replaced by a single vertex. For areas of high clusters of points, this could be useful to reduce redundancy. If no ```boundary``` is set the mesh is created on the convex hull of the observations.
+
+This was inspired from <https://punama.github.io/BDI_INLA/>. Thanks!
+```{r inla-mesh}
+mesh0 <- inla.mesh.2d(loc = coo, max.edge=c(200, 500))
+mesh1 <- inla.mesh.2d(loc = coo, max.edge=c(200, 500), cutoff=1)
+mesh2 <- inla.mesh.2d(loc = coo, max.edge=c(100, 150), cutoff=1)
+mesh3 <- inla.mesh.2d(loc = coo, max.edge=c(100), cutoff=1)
+mesh4 <- inla.mesh.2d(loc = coo, max.edge=c(500, 750))
+mesh5 <- inla.mesh.2d(loc = coo, max.edge=c(500, 750), cutoff=1)
+mesh <- mesh0
+mesh$n
+plot(mesh0)
+plot(mesh1)
+plot(mesh2)
+plot(mesh3)
+plot(mesh4)
+plot(mesh5)
+```
+
+Next we construct the A matrix that "A that projects the GRF from the observations to the vertices of the triangulated mesh." (Moraga 2024). 
+This A matrix has a row for each ovservation, and columns equal to the number of vertices in the mesh. That is shown above, with ```mesh$n```. Below, two different meshes are generated. One for the observation locations, and one for the prediction locations. We need to set these both at once, because to make predictions in INLA we have to have that all pre-specified, unlike with the typical modelling style in R.
+
+Additionally, the index allows us to extract fitted values from the model.
+
+The smoothness parameter is set to 1, where in the spatial case $d=2$ and $\alpha=\nu + d/2 = 2$, seen in the code below.
+
+```{r inla-A}
+plot(mesh)
+points(coo, col = "red")
+axis(1)
+axis(2)
+spde <- inla.spde2.matern(mesh = mesh, alpha = 2, constr = TRUE)
+indexs <- inla.spde.make.index("s", spde$n.spde)
+lengths(indexs)
+# Make the projection matrices
+A <- inla.spde.make.A(mesh = mesh, loc = coo)
+Ap <- inla.spde.make.A(mesh = mesh, loc = coop)
+dim(A)
+dim(Ap)
+```
+Then we have to make the INLA stack. This is done because we need to combine the data for estimation with the prediction data, as well as the projection matrices. It contains the response data, the list of covariate data--here the temperature and precipitation--the projection matrices, and the indices.
+
+```{r inla-stack}
+# stack for estimation stk.e
+stk.e <- inla.stack(tag = "est",
+data = list(y = d$value), A = list(1, A),
+effects = list(data.frame(b0 = rep(1, nrow(A)),
+covtemp = d$covtemp, covprec = d$covprec),
+s = indexs))
+#stk.e
+
+# stack for prediction stk.p
+stk.p <- inla.stack(tag = "pred",
+data = list(y = NA), A = list(1, Ap),
+effects = list(data.frame(b0 = rep(1, nrow(Ap)),
+covtemp = dp$covtemp, covprec = dp$covprec),
+s = indexs))
+#stk.p
+
+# stk.full has stk.e and stk.p
+stk.full <- inla.stack(stk.e, stk.p)
+```
+Finally, we can specify the model in INLA. All the hard work has been done above and at least the model specification in INLA is easier.
+
+Here we specify both fixed effects and the spatial random effect/Gaussian field. Still not sure how exactly to say it.
+
+The model fit is described by the equation
+$$
+Y_i \sim N(\mu_i, \sigma^2)
+$$
+with mean specified by
+$$
+\mu_i = \beta_0 + \beta_1 \times \text{temp}_i + \beta_2 \times \text{prec}_i + S(x_i)
+$$
+so there is some contribution from fixed effects as well as a unknown latent process modelled as a zero-mean Gaussian Random Field with Matern covariance function. This puts us well within INLA territory.
+
+```{r inla-model}
+formula <- y ~ 0 + b0 + covtemp + covprec + f(s, model = spde)
+res <- inla(formula, family = "gaussian",
+       data = inla.stack.data(stk.full),
+       control.predictor = list(compute = TRUE,
+                                A = inla.stack.A(stk.full)),
+       control.compute = list(return.marginals.predictor = TRUE))
+```
+What does ```control.compute``` do? We have a nice description of the control options at <https://becarioprecario.bitbucket.io/inla-gitbook/ch-INLA.html#sec:controlops>. It controls what quantities are actually computed and returned during the INLA estimation. For example, there are a few different information criteria that it can return.
+
+```control.predictor``` will compute the posterior marginals of the parameters.
+
+The options:
+```{r control-compute}
+inla.set.control.compute.default()
+```
+Once the model is fit, we can inspect the fixed parameters and estimated latent field, as well as the hyperparameters for the latent field.
+```{r inspect-fit}
+res$summary.fixed
+# Latent field is here
+res$summary.random$s
+res$summary.hyperpar
+
+index <- inla.stack.index(stack = stk.full, tag = "pred")$data
+pred_mean <- res$summary.fitted.values[index, "mean"]
+pred_ll <- res$summary.fitted.values[index, "0.025quant"]
+pred_ul <- res$summary.fitted.values[index, "0.975quant"]
+grid$mean <- NA
+grid$ll <- NA
+grid$ul <- NA
+
+grid$mean[indicespointswithin] <- pred_mean
+grid$ll[indicespointswithin] <- pred_ll
+grid$ul[indicespointswithin] <- pred_ul
+  
+summary(grid) # negative values for the lower limit
+library(rasterVis)
+levelplot(grid, layout = c(1, 3),
+names.attr = c("Mean", "2.5 percentile", "97.5 percentile"))
+```
+When ```compute=TRUE``` in ```control.predictor```, we can also obtain the output below. <https://www.paulamoraga.com/book-geospatial/sec-inla.html> is good for info about this.
+```{r posterior-marginals}
+res$summary.fitted.values
+res$summary.linear.predictor
+```
+as well as ```marginals.linear.predictor``` and ```marginals.fitted.values```.
+
+From <https://becarioprecario.bitbucket.io/inla-gitbook/ch-INLA.html#model-fitting-strategies> 
+we can also see the differences using the different fitting strategies, set by the ```control.inla``` argument.
+
+We can change both the Gaussian approximation strategy for the posterior full conditional distributions, as well as the integration strategy used to integrate out the $\theta_{-k}$ parameters to get the marginal distribution for $\theta_k$. 
+
+The ```"grid"``` option is the most costly, compared to the central composite design (```"ccd"```). In the empirical bayes option (```"eb"```), the posterior mode is used as the integration point.
+
+```{r fitting strategies}
+approx_strategy <- c("gaussian", "simplified.laplace", "laplace")
+int_strategy <- c("ccd", "grid", "eb")
+models <- c("iid", "matern")
+fits <- matrix(nrow=length(approx_strategy)*length(int_strategy)*length(models), ncol=3)
+fits_marginals <- vector(mode="list", length=length(approx_strategy)*length(int_strategy)*length(models))
+index_f <- 0
+model_names <- c()
+for (m in models){
+  for(a in approx_strategy){
+    for (i in int_strategy){
+      index_f <- index_f + 1
+      if (m=="matern"){
+        formula_approx <- y ~ 0 + b0 + covtemp + covprec + f(s, model = spde)
+      }
+      else{
+        formula_approx <- y ~ 0 + b0 + covtemp + covprec + f(s, model = "iid")
+      }
+      print(paste(a, ", ", i, ", ", m))
+      model_names <- c(model_names, paste(a, ", ", i, ", ", m))
+      fit_approx <- inla(formula, family = "gaussian",
+         data = inla.stack.data(stk.full),
+         control.inla = list(strategy = a, int.strategy = i),
+         control.compute = list(cpo = TRUE, dic = TRUE, waic = TRUE),
+         control.predictor = list(compute = TRUE, A = inla.stack.A(stk.full)))
+      fits[index_f,] <- fit_approx$summary.fixed$mean
+      fits_marginals[[index_f]] <- fit_approx$marginals.fixed$b0
+  }
+  }
+}
+```
+Let's compare the means of the parameters
+```{r compare-fits}
+fits_df <- as.data.frame(fits)
+names(fits_df) <- c("b0", "covtemp", "covprec")
+fits_df$models <- model_names
+fits_df
+```
+Also compare the posteriors themselves
+```{r compare-marginals}
+# Combine dataframes
+df_list <- lapply(fits_marginals, function(m) {
+  data.frame(x = m[,1], y = m[,2]) 
+})
+new_df <- do.call(rbind, df_list) 
+# Add an ID column
+row_counts <- sapply(fits_marginals, nrow)
+ids <- factor(rep(1:length(fits_marginals), each = row_counts))
+length(ids)
+
+new_df <- new_df[1:86,]
+ggplot(new_df, aes(x = x, y = y, colour = id)) + 
+  geom_line() 
+```
+Wow so with this test data there is not really much different between meshes or with estimation methods.
+
+Another useful feature is the set of functions that can be used to manipulate the marginal distributions. Might be useful to compute posterior quantities such as KL divergence: <https://becarioprecario.bitbucket.io/inla-gitbook/ch-INLA.html#sec:marginals>
+
+Again from <https://www.paulamoraga.com/book-geospatial/sec-inla.html> is helpful.
+
+```{r marginal}
+inla.mmarginal(res$marginals.fixed$b0)
+# Should be the same?
+res$summary.fixed$mode[1]
+```
+
+
+Next, let's write that model in INLABRU and check if the estimates are the same. Then, we also look at how to fit the LGCP in INLA/INLABRU. 
+
+Wne can use the same mesh and spde function as we used before. And also the same formula! (I think). But what is especially nice about INLABRU is that we don't have to set up the stack with the projection matrices. We just model the response variable as a function of the covariates in the dataset we set up earlier and the locations of the observations. In INLABRU, we can use the sf dataset object directly.
+
+INLA 
+```{r inlabru-setup}
+formula <- value ~ Intercept(1) + covtemp + covprec + f(geometry, model = spde)
+# Fit the model for inlabru
+fit <- bru(formula, data = d, family = "gaussian")
+# Summarize the results
+summary(fit)
+```
+
+TODO, 12-10. 
+
+- then: do an LGCP in inla/inlabru, then do multiple likelihoods.
+- eh waht about the posterior marginal functions, any more about that?
+- Follow https://www.paulamoraga.com/book-spatial/point-process-modeling.html for the LGCP as well?
+- and then do my own data.

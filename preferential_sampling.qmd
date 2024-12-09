@@ -42,7 +42,7 @@ $$
 $$
 Y_i \sim N(\mu + S(x_i), \tau^2).
 $$
-Simple geostatistics as we say in the biz, yet effective enough to demonstrate their point. Note that here Diggle is concerned with the underlying spatial process $S$. Much to my surprise, this is in fact the process that we are collecting data $Y$ to predict/estimate. This will stand slight contrast to the work of Pati 2011, where we are concered in the response variable $Y$ itself. 
+Simple geostatistics as we say in the biz, yet effective enough to demonstrate their point. Note that here Diggle is concerned with the underlying spatial process $S$. Much to my surprise, this is in fact the process that we are collecting data $Y$ to predict/estimate. It's more of a Krigin style approach, where the response variable itself is not of interest. The reason I got this confused was that in Bayesian statistics, the posterior predictive distribution comes for free with MCMC. In the case of Diggle, I will say that they are interested of the predictive distribution of S, conditional on the observed Y and measurements X at the chosen locations. This will stand slight contrast to the work of Pati 2011, where we are concerned in the response variable $Y$ itself. 
 
 In Pati 2011, the authors instead focus on modifying the likelihood of the response variable with the likelihood of the locations of the measurements, performed in a Bayesian setting. They use a joint model:
 $$
@@ -60,9 +60,21 @@ where $\xi_r$ and $\eta_r$ are the zero-mean residuals and the $\beta$s are the 
 $$
 E[y_i|x_i] = x_i^T(a\beta_{\xi} + \beta_{\eta}) + a\xi_r(x_i) + \eta_r(x_i), \; (i=1,...,n)
 $$
-So we have a correction in the mean for informative sampling by the way of shared spatial covariates, and the correction to the likelihood with the sampling density.
+So we have a correction in the mean for informative sampling by the way of shared spatial covariates, and the correction to the likelihood with the sampling density. The authors say that the density correction is only necessary when the covariates aren't sufficient to account for the preferential sampling. Interestingly, it seems $x_i$ is the same set of covariates, so the parameters are fit according to the effect that the covariates have on the response and the location density, respectively.
 
-ehhh check are these separate covariates or are the covariates really the same for sampling and for mean?
+The Bayesian equation for this can (generally, not the model from Pati) be written as
+$$
+p(\alpha, \gamma, \tau_y, \theta, Z(s) | Y, X) \propto p(Y | X, Z(s), \alpha, \gamma, \tau_y) * p(X | Z(s), \alpha, \gamma) * p(Z(s) | \theta) * p(\theta) * p(\gamma) * p(\tau_y) * p(\theta)
+$$
+From Gemini:
+Y: The observed response variable (normally distributed).
+X: The observed sampling locations (modeled as an LGCP).
+Z(s): The latent Gaussian process.
+α: The intercept of the log-intensity of the LGCP.
+γ: The scaling parameter controlling the influence of the latent GP on the sampling intensity.
+τ<sub>y</sub>: The precision of the Gaussian likelihood for the response variable.
+θ: The parameters of the covariance function for the latent GP.
+This equation expresses the joint posterior distribution of all the unknown quantities (parameters and the latent GP) given the observed data (response and sampling locations). It is proportional to the product of the likelihoods for the response and the sampling locations, the prior for the latent GP, and the priors for all the parameters.
 
 Then, the sampling density needs to be approximated, particularly the integral over the spatial domain. They take care of that somehow. 
 
@@ -70,9 +82,9 @@ TODO, 12-3-204: Finish writing their paper up, but I realized I need to put the 
 inla/inlabru to really see how this is working and what it feels like.
 
 
-## Modelling with INLA.
+## Modelling preferential/informative sampling with INLA.
 
-This all then begs the question: How can we model the locations in INLA? Let's see it! We specify a model where the point locations are modelled with a LGCP:
+This all then begs the question: How can we model the locations in INLA? Let's see it! We specify a model where the point locations are modelleled with a LGCP:
 $$
 \lambda(x) = \exp[\alpha + S(x)]
 $$
@@ -249,7 +261,7 @@ z <- log(t(Lam$v)[do.call('cbind',
   nearest.pixel(xy[, 1], xy[, 2], Lam))])
 summary(z)
 ```
-TODO: 12-4: Different examples of preferential sampling: From Krainski, from the INLA examples, and from INLABRU with multiple likelihoods. Straighten these out, compare inla and inlabru. The preferential sampling is a good usecase of combining multiple likelihoods which I needed to do anyway. I'm just figuring out the meshes and what is possible in inla v inlabru. 
+TODO: 12-4: Different exampl    es of preferential sampling: From Krainski, from the INLA examples, and from INLABRU with multiple likelihoods. Straighten these out, compare inla and inlabru. The preferential sampling is a good usecase of combining multiple likelihoods which I needed to do anyway. I'm just figuring out the meshes and what is possible in inla v inlabru. 
 
 And then implement for air pollution!
 

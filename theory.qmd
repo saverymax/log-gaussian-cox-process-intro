@@ -2,7 +2,10 @@
 
 A Poisson point process is a stochastic set of random variables in 2D space. The LGCP is a version of this incorporates spatial and potentially temporal correlation into a model for this point process, including the number of points in the spatial domain and the locations of the points.
   
-See @camelitti-2013 to set up the pieces for the spatial-temporal covariance bits. Paula Moraga resources are also very useful. I like <https://www.paulamoraga.com/book-spatial/sec-geostatisticaldataSPDE.html> and 
+See @camelitti-2013 to set up the pieces for the spatial-temporal covariance bits. 
+
+Finish augmenting notes with:
+<https://www.paulamoraga.com/book-spatial/sec-geostatisticaldataSPDE.html> and 
 <https://becarioprecario.bitbucket.io/spde-gitbook>
 
 In the Poisson Point Process the intensity is written as
