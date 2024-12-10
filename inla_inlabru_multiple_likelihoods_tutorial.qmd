@@ -1,0 +1,5 @@
+
+# Combining Likelihoods in INLA and INLABRU
+
+We next look at how to combine models of two different likelihoods in both packages. We can combine models of different processes (ie Gaussian and Poisson)
+or of different spatial alignments (collected at areas and points)

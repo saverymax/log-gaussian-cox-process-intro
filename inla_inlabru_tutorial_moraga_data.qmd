@@ -105,7 +105,9 @@ coop <- st_coordinates(dp)
 summary(dist(coo)) # summary of distances between locations
 ```
 Mesh options are from <https://punama.github.io/BDI_INLA/#:~:text=stack%20function.,list%20of%20effects%20(effects).>
-```max.edge``` controls the largest triangle edge length, and providing it with a vector ```c(inner, outer)``` sets the max edge for inside the boundary and outside the boundary. ```cutoff``` is the minimum allowed distance between points. Otherwise, points are replaced by a single vertex. For areas of high clusters of points, this could be useful to reduce redundancy. If no ```boundary``` is set the mesh is created on the convex hull of the observations.
+```max.edge``` controls the largest triangle edge length, and providing it with a vector ```c(inner, outer)``` sets the max edge for inside the boundary and outside the boundary. The purpose of this is to avoid boundary effects in the estimation of the model, where boundary values have high variance. Lindgren and Rue (2015) suggest to extend the domain by some amount. This is briefly discussed in the book by Blangiardo (2015).
+
+```cutoff``` is the minimum allowed distance between points. Otherwise, points are replaced by a single vertex. For areas of high clusters of points, this could be useful to reduce redundancy. If no ```boundary``` is set the mesh is created on the convex hull of the observations.
 
 This was inspired from <https://punama.github.io/BDI_INLA/>. Thanks!
 ```{r inla-mesh}
@@ -316,9 +318,5 @@ fit <- bru(formula, data = d, family = "gaussian")
 summary(fit)
 ```
 
-TODO, 12-10. 
-
-- then: do an LGCP in inla/inlabru, then do multiple likelihoods.
+TODO
 - eh waht about the posterior marginal functions, any more about that?
-- Follow https://www.paulamoraga.com/book-spatial/point-process-modeling.html for the LGCP as well?
-- and then do my own data.
