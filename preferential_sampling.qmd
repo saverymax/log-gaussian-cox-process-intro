@@ -90,8 +90,9 @@ $$
 $$
 Ah resources here: <https://sites.google.com/a/r-inla.org/www/examples/case-studies/diggle09>
 
-Code below is from part of the paper: <https://sites.google.com/a/r-inla.org/www/examples/case-studies/diggle09/simulation2>
-# TODO: 12-3, let's do this!
+
+Krainski 2018 shows how to write this model in the INLA frameowork, from <https://becarioprecario.bitbucket.io/spde-gitbook/ch-lcox.html>, which is just a specific application of the multiple likelihoods implementation in INLA.
+
 ```{r set-up}
 library(inlabru)
 library(INLA)
@@ -99,65 +100,6 @@ library(ggplot2)
 library(sf)
 ```
 
-```{r diggle-2010}
-ii=c(1:n,rep(NA,n))     
-
-jj = c(rep(NA,n), 1:n)
-
-alpha = c(rep(0,n), rep(1,n))
-
-mu = c(rep(1,n), rep(0,n))
-```
-Then use the method of <https://onlinelibrary.wiley.com/doi/full/10.1002/ece3.4789> from the github issue <https://github.com/inlabru-org/inlabru/issues/57>:
-```{r maria-pennino-2018}
-# From https://github.com/inlabru-org/inlabru/issues/57
-# and
-# https://inlabru-org.github.io/inlabru/articles/2d_lgcp_multilikelihood.html
-data(shrimp)
-ggplot() + gg(shrimp$mesh) + gg(shrimp$hauls) + coord_equal()
-
-ips = ipoints(shrimp$mesh)
-
-matern <- inla.spde2.pcmatern(shrimp$mesh, 
-                              prior.sigma = c(0.1, 0.01), 
-                              prior.range = c(1, 0.01))
-
-cmp = ~ spde(coordinates, model = matern) + spdeCopy(coordinates, copy = "spde", model = matern, fixed = FALSE) + lgcpIntercept + Intercept
-
-lik_1 <- bru_obs("cp",
-  formula = fml.major,
-  data = gorillas_sf$nests[gorillas_sf$nests$group == "major", ],
-  samplers = gorillas_sf$boundary,
-  domain = list(geometry = gorillas_sf$mesh)
-)
-lik_major <- bru_obs("cp",
-  formula = fml.minor,
-  data = gorillas_sf$nests[gorillas_sf$nests$group == "minor", ],
-  samplers = gorillas_sf$boundary,
-  domain = list(geometry = gorillas_sf$mesh)
-)
-
-lik1 =  bru(components = cmp,
-             data =  shrimp$hauls, 
-             family = "poisson", 
-             formula = catch ~ spde + Intercept)
-
-lik2 =  bru(components = cmp,
-             data =  shrimp$hauls, 
-             family = "cp",
-             ips = ips,
-             formula = coordinates ~ spdeCopy + lgcpIntercept)
-
-fit = bru(components = cmp, lik1, lik2, options = list(max.iter = 1))
-
-pxl = pixels(shrimp$mesh)
-fish.intensity = predict(fit, pxl, ~ exp(spde + Intercept))
-ggplot() + gg(fish.intensity) + gg(shrimp$hauls, size = 0.5)
-
-```
-
-Fortunately, Krainski 2018 shows how to write this model in the INLA frameowk.
-<https://becarioprecario.bitbucket.io/spde-gitbook/ch-lcox.html>
 ```{r krainski-2018-chp4}
 library(spatstat)
 library(RandomFields)
@@ -261,9 +203,56 @@ z <- log(t(Lam$v)[do.call('cbind',
   nearest.pixel(xy[, 1], xy[, 2], Lam))])
 summary(z)
 ```
-TODO: 12-4: Different exampl    es of preferential sampling: From Krainski, from the INLA examples, and from INLABRU with multiple likelihoods. Straighten these out, compare inla and inlabru. The preferential sampling is a good usecase of combining multiple likelihoods which I needed to do anyway. I'm just figuring out the meshes and what is possible in inla v inlabru. 
+To implement in INLABRU, I did this when I first started, but I will redo for whatever data I use above:
 
-And then implement for air pollution!
+Then use the method of <https://onlinelibrary.wiley.com/doi/full/10.1002/ece3.4789> from the github issue <https://github.com/inlabru-org/inlabru/issues/57>:
+```{r maria-pennino-2018}
+# From https://github.com/inlabru-org/inlabru/issues/57
+# and
+# https://inlabru-org.github.io/inlabru/articles/2d_lgcp_multilikelihood.html
+data(shrimp)
+ggplot() + gg(shrimp$mesh) + gg(shrimp$hauls) + coord_equal()
+
+ips = ipoints(shrimp$mesh)
+
+matern <- inla.spde2.pcmatern(shrimp$mesh, 
+                              prior.sigma = c(0.1, 0.01), 
+                              prior.range = c(1, 0.01))
+
+cmp = ~ spde(coordinates, model = matern) + spdeCopy(coordinates, copy = "spde", model = matern, fixed = FALSE) + lgcpIntercept + Intercept
+
+lik_1 <- bru_obs("cp",
+  formula = fml.major,
+  data = gorillas_sf$nests[gorillas_sf$nests$group == "major", ],
+  samplers = gorillas_sf$boundary,
+  domain = list(geometry = gorillas_sf$mesh)
+)
+lik_major <- bru_obs("cp",
+  formula = fml.minor,
+  data = gorillas_sf$nests[gorillas_sf$nests$group == "minor", ],
+  samplers = gorillas_sf$boundary,
+  domain = list(geometry = gorillas_sf$mesh)
+)
+
+lik1 =  bru(components = cmp,
+             data =  shrimp$hauls, 
+             family = "poisson", 
+             formula = catch ~ spde + Intercept)
+
+lik2 =  bru(components = cmp,
+             data =  shrimp$hauls, 
+             family = "cp",
+             ips = ips,
+             formula = coordinates ~ spdeCopy + lgcpIntercept)
+
+fit = bru(components = cmp, lik1, lik2, options = list(max.iter = 1))
+
+pxl = pixels(shrimp$mesh)
+fish.intensity = predict(fit, pxl, ~ exp(spde + Intercept))
+ggplot() + gg(fish.intensity) + gg(shrimp$hauls, size = 0.5)
+
+```
+
 
 
 

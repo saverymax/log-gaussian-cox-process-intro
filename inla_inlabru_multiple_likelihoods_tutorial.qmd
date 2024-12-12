@@ -3,3 +3,244 @@
 
 We next look at how to combine models of two different likelihoods in both packages. We can combine models of different processes (ie Gaussian and Poisson)
 or of different spatial alignments (collected at areas and points)
+
+For the INLA example, we will look at <https://becarioprecario.bitbucket.io/inla-gitbook/ch-INLAfeatures.html#sec:sevlik> though <https://becarioprecario.bitbucket.io/spde-gitbook/ch-manipula.html> also has some examples. 
+To do this in INLA, we can consider a joint model with response variables $Y$ and $Z$. For INLA, the data will be stored 
+$$
+\begin{pmatrix}
+y_1 & \text{NA}\\
+y_2 & \text{NA}\\
+\vdots & \text{NA}\\
+y_n & \text{NA}\\
+\text{NA} & z_1\\
+\text{NA} & z_2\\
+\text{NA} & \vdots\\
+\text{NA} & z_m
+\end{pmatrix}
+$$
+such that the matrix will have as many columns as likelihoods.
+Say we want to combine Gaussian and Poisson data
+
+
+One question is how well identified these models will be.
+
+Anyway, let's set up the example
+```{r sim data}
+set.seed(314)
+# Gaussian data
+d1 <- rnorm(30)
+
+# Poisson data
+d2 <- rpois(20, 10)
+
+# Data
+d <- matrix(NA, ncol = 2, nrow = 30 + 20)
+d[1:30, 1] <- d1
+d[30 + 1:20, 2] <- d2
+d
+```
+Each model will have a different intercept but a shared covariate. Notice the dimensions of values and NAs, but not for the shared covariate.
+```{r inla-model}
+# Define a different intercept for each likelihood
+Intercept1 <- c(rep(1, 30), rep(NA, 20))
+Intercept2 <- c(rep(NA, 30), rep(1, 20))
+# Covariate
+x <- rnorm(30 + 20)
+# The multilikelihood model:
+mult.lik <- inla(Y ~ -1 + I1 + I2 + x,
+  data = list(Y = d, I1 = Intercept1, I2 = Intercept2, x = x),
+  family = c("gaussian", "poisson"))
+```
+```{r check-model}
+summary(mult.lik)
+```
+So that's pretty easy!    
+
+But we can make it more complicated by sharing different terms amongst different parts of the model. In that case we have to use the copy feature of INLA.
+
+The following model is defined:
+$$
+\begin{aligned}
+y_i \sim N(\mu_i,\tau=1) \;\;i=1,...,150\\
+\mu_i = 2\cdot x_i\;\;i=1,...,150\\
+z_i \sim PO(\lambda_i)\;\;i=151,...,200\\
+\log\lambda = 2x_i\;\;i=151,...,200
+\end{aligned}
+$$
+So that the shared effect is the coefficient for the $x_i$ covariate.
+
+To simulate data according to this process
+```{r data-sim-2}
+set.seed(271)
+#Covariate
+xx <- runif(200, 1, 2)
+#Gaussian data
+y.gaus <- rnorm(150, mean = 2 * xx[1:150])
+#Poisson data
+y.pois <- rpois(50, lambda = exp(2 * xx[151:200]))
+y <- matrix(NA, ncol = 2, nrow = 200)
+y[1:150, 1] <- y.gaus
+y[151:200, 2] <- y.pois
+y
+```
+
+```{r data-index}
+idx.gaus <- c(rep(1, 150), rep(NA, 50))
+idx.pois <- c(rep(NA, 150), rep(1, 50))
+```
+And create the model
+```{r inla-copy}
+m.copy <- inla(y ~ -1 + f(idx.gaus, xx, model = "iid") +
+  f(idx.pois, xx, copy = "idx.gaus",
+    hyper = list(beta = list(fixed = FALSE))),
+  data = list(y = y, xx = xx),
+  family = c("gaussian", "poisson")
+)
+summary(m.copy)
+m.copy$summary.random
+```
+There is also the ```replicate``` of INLA, where only the random effects share only the hyperparameters, e.g., different spatial fields.
+
+Ehh, but how do we do this for a spatial model? Let's follow the example from the Blangiardo 2015 book. 
+```{r blandgiardo}
+n_y <- 15
+n_x <- 20
+set.seed(2)
+loc_y <- cbind(runif(n_y), runif(n_y))
+loc_x <- cbind(runif(n_x), runif(n_x))
+plot(loc_y)
+points(loc_x, pch=5, col="orange")
+```
+
+```{r model-sim}
+rmatern_sim <- function(coords, kappa, variance, lambda=1){
+  n <- nrow(coords)
+  dist.m <- as.matrix(dist(coords))
+  cor.m <-  2^(1-lambda)/gamma(lambda)*(dist.m * kappa)^lambda * besselK(x=dist.m*kappa, nu=lambda) 
+  diag(cor.m) <- 1
+  Sigma <- variance*cor.m
+  c(chol(Sigma) %*% rnorm(n=n, mean=1, sd=1))
+}
+
+set.seed(223)
+kappa_xi <- 5
+sigma2_xi <- 0.5
+kappa_u <- 7
+sigma2_u <- 0.3
+u <- rmatern_sim(loc_y, kappa_u, sigma2_u)
+u
+set.seed(233)
+xi <- rmatern_sim(rbind(loc_x, loc_y), kappa_xi, sigma2_xi)
+xi
+
+b0 <- 10
+beta1 <- 0.5
+sigma2_e <- 0.16
+sigma2_x <- 0.25
+set.seed(4455)
+# x will be the simulated realizations of the process at xi plus a little noise
+x <- xi[1:n_x] + rnorm(n=n_x, mean=0, sd=sqrt(sigma2_x))
+set.seed(5544)
+# y will be the contribution of x through beta plus noise.
+y <- b0 + beta1*xi[n_x + 1:n_y] + u + rnorm(n=n_y, mean=0, sd=sqrt(sigma2_e))
+```
+
+```{r inla-prep}
+mesh <- inla.mesh.2d(loc=rbind(loc_x, loc_y), max.edge=0.15, cutoff=0.3, offset=0.1)
+spde <- inla.spde2.matern(mesh, alpha=2)
+A_x <- inla.spde.make.A(mesh=mesh, loc=loc_x)
+dim(A_x)
+A_y <- inla.spde.make.A(mesh=mesh, loc=loc_y)
+dim(A_y)
+
+stk.x <- inla.stack(
+  data = list(y = cbind(x, NA)), 
+  effects = list(xi.field=1:spde$n.spde),
+  A = list(A_x),
+  tag = "est.x") 
+
+stk.y <- inla.stack(
+  data = list(y = cbind(NA, y)), 
+  effects = list(
+    list(u.field=1:spde$n.spde, x.field=1:spde$n.spde),
+    list(intercept=rep(1,n_y))),
+  A = list(A_y, 1),
+  tag = "est.y") 
+stk <- inla.stack(stk.x, stk.y)
+
+```
+```{r fit-inla}
+formula <- y ~ -1 + f(xi.field, model=spde) + 
+  intercept + f(u.field, model=spde) + 
+  f(x.field, copy="xi.field", fixed=F, 
+    hyper=list(theta=list(param=c(-1,10))))
+
+precprior <- list(theta=list(param=c(1,0.1)))
+
+fit_multi_lik <- inla(formula, family=c("gaussian", "gaussian"),
+                      data=inla.stack.data(stk),
+                      control.predictor=list(compute=T, A=inla.stack.A(stk)),
+                      control.family=list(list(hyper=precprior),
+                                          list(hyper=precprior)))
+```
+```{r check-fit}
+summary(fit_multi_lik)
+```
+Oh wow badly specified precision...
+
+TODO: 13-12.Then we try to do the same in INLABRU. 
+
+See the example here: <https://inlabru-org.github.io/inlabru/articles/2d_lgcp_multilikelihood.html>
+```{r inlabru-setup}
+data(gorillas_sf, package = "inlabru")
+ggplot() +
+  gg(gorillas_sf$mesh) +
+  gg(gorillas_sf$nests, aes(color = group)) +
+  gg(gorillas_sf$boundary, alpha = 0) +
+  ggtitle("Gorillas nests and group membership")
+matern <- inla.spde2.pcmatern(gorillas_sf$mesh,
+  prior.range = c(0.1, 0.01),
+  prior.sigma = c(1, 0.01)
+)
+
+cmp <- ~
+  Common(geometry, model = matern) +
+    Difference(geometry, model = matern) +
+    Intercept(1)
+fml.major <- geometry ~ Intercept + Common + Difference / 2
+fml.minor <- geometry ~ Intercept + Common - Difference / 2
+lik_minor <- bru_obs("cp",
+  formula = fml.major,
+  data = gorillas_sf$nests[gorillas_sf$nests$group == "major", ],
+  samplers = gorillas_sf$boundary,
+  domain = list(geometry = gorillas_sf$mesh)
+)
+lik_major <- bru_obs("cp",
+  formula = fml.minor,
+  data = gorillas_sf$nests[gorillas_sf$nests$group == "minor", ],
+  samplers = gorillas_sf$boundary,
+  domain = list(geometry = gorillas_sf$mesh)
+)
+jfit <- bru(cmp, lik_major, lik_minor,
+  options = list(
+    control.inla = list(
+      int.strategy = "eb"
+    ),
+    bru_max_iter = 1
+  )
+)
+library(patchwork)
+pl.major <- ggplot() +
+  gg(gorillas_sf$mesh,
+    mask = gorillas_sf$boundary,
+    col = exp(jfit$summary.random$Common$mean)
+  )
+pl.minor <- ggplot() +
+  gg(gorillas_sf$mesh,
+    mask = gorillas_sf$boundary,
+    col = exp(jfit$summary.random$Difference$mean)
+  )
+(pl.major + scale_fill_continuous(trans = "log")) +
+  (pl.minor + scale_fill_continuous(trans = "log")) &
+  theme(legend.position = "right")
+```
