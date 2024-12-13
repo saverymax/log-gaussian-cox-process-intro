@@ -255,5 +255,52 @@ ggplot() + gg(fish.intensity) + gg(shrimp$hauls, size = 0.5)
 
 
 
-
-
+Let's start with my own data!  Instead of Berlin maybe I'll get the Flanders data.
+```{r air-pollution-data}
+data_dir <- file.path("D:", "data", "air_quality_data", "compair")
+ref_station_file_name_pm10 <- "berlin_pm10_ref_stations.xlsx"
+sodaq_sensor_file_name_pm10 <- "berlin_pm10_sodaq_sensors.xlsx"
+sensor_comm_file_name_pm10 <- "berlin_pm10_sensor-comm.xlsx"
+ref_station_file_name_pm25 <- "berlin_pm25_ref_stations.xlsx"
+sodaq_sensor_file_name_pm25 <- "berlin_pm25_sodaq_sensors.xlsx"
+sensor_comm_file_name_pm25 <- "berlin_pm25_sensor-comm.xlsx"
+map_dir <- file.path("D:", "data", "maps")
+berlin_districts <- geojson_sf(file.path(map_dir, "berlin_districts.geojson"))
+xlsx_station_data <- read_xlsx(file.path(data_dir, ref_station_file_name_pm10)) %>%  mutate(
+  datetime = dmy_hms(Timestamp))
+xlsx_sodaq_data <- read_xlsx(file.path(data_dir, sodaq_sensor_file_name_pm10)) %>%  mutate(
+  datetime = dmy_hms(Timestamp))
+xlsx_sensor_comm <- read_xlsx(file.path(data_dir, sensor_comm_file_name_pm10)) %>%  mutate(
+  datetime = dmy_hms(Timestamp))
+head(xlsx_station_data, n=100)
+head(xlsx_sodaq_data)
+head(xlsx_sensor_comm)
+unique(xlsx_station_data$SensorId)
+unique(xlsx_sodaq_data$SensorId)
+unique(xlsx_sensor_comm)
+# In this data the longitude (52) is first in tuple, lat is second.
+ref_stations_pm10 <- separate(data = xlsx_station_data, col = "Location", into = c("lon", "lat"), sep = ",") %>% 
+  mutate(lon=as.numeric(lon), lat=as.numeric(lat)) %>% filter(datetime>=as.POSIXct("2024-05-01"))
+sodaq_pm10 <- separate(data = xlsx_sodaq_data, col = "Location", into = c("lon", "lat"), sep = ",") %>% 
+  mutate(lon=as.numeric(lon), lat=as.numeric(lat)) %>% filter(datetime>=as.POSIXct("2023-04-01"), Value<=1000)
+head(ref_stations_pm10)
+tail(ref_stations_pm10)
+dim(ref_stations_pm10)
+head(sodaq_pm10)
+dim(sodaq_pm10)
+# Convert to sf. Lat goes first for EPSG:4236
+ref_stations_pm10 %>% st_as_sf(coords=c("lat", "lon"), crs=4326) -> station_locations
+sodaq_pm10 %>% st_as_sf(coords=c("lat", "lon"), crs=4326) -> sodaq_sf
+# Let's also do a little temporal summarization
+#ref_stations_pm10 %>% mutate(month=lubridate::ceiling_date(datetime, "month")) %>% group_by(month, SensorId) %>% 
+#              summarise(monthly_concentration=mean(Value)) -> monthly_air
+station_locations %>% mutate(day=lubridate::ceiling_date(datetime, "day")) %>% group_by(day, SensorId) %>% 
+              summarise(daily_concentration=mean(Value)) -> daily_air
+sodaq_sf %>% mutate(day=lubridate::ceiling_date(datetime, "day")) %>% group_by(day, SensorId) %>% 
+              summarise(daily_concentration=mean(Value)) -> sodaq_daily
+daily_air
+head(daily_air)
+tail(daily_air)
+dim(daily_air)
+head(sodaq_daily)
+dim(sodaq_daily)
