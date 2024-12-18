@@ -2,18 +2,18 @@ project:
   type: book
 
 book:
-  title: "Log-Gaussian Cox Processes: Approximations and Usage"
+  title: "INLA and Log Gaussian Cox Processes: Theory and Application"
   author: "Max Savery"
-  date: "29/4/2024"
+  date: "18/12/2024"
   chapters:
     - index.qmd
     - intro.qmd
     - theory.qmd
     - approximation.qmd
     #- lgcp.qmd
-    - preferential_sampling.qmd
-    - summary.qmd
-    - references.qmd
+    #- preferential_sampling.qmd
+    #- summary.qmd
+    #- references.qmd
 
 bibliography: references.bib
 

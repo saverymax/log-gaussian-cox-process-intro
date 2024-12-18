@@ -14,7 +14,7 @@ $$
 Y_i \sim N(u_i, \sigma^2)\\
 u_i = \beta_0\cdot\text{temp} + \beta_1\cdot\text{precipitation}_i + S(x_i).
 $$
-So it's a typical Gaussian process with latent mean structure (not sure whats the statistical way to say this; potentially a spatial random effect). This is what Moraga calls "geostatistical data", that is, measurements taken at discrete locations but used to describe or estimate a spatially continuous process, such as air pollution. It is very similar to a mixed model with a random effect. In this case the random effect is gaussian distributed and spatially indexed. 
+So it's a typical Gaussian distributed variable with underlying latent structure (not sure whats the most accurate statistical way to say this; potentially a spatial random effect "modelled as a Gaussian process"). This is what Moraga calls "geostatistical data", that is, measurements taken at discrete locations but used to describe or estimate a spatially continuous process, such as air pollution. It is very similar to a mixed model with a random effect. In this case the random effect is gaussian distributed and spatially indexed. 
 
 We approximate a spatially continuous process with a discrete process, using the triangulation mesh. 
 
@@ -69,6 +69,7 @@ More data process
 ```{r process-data-2}
 library(geodata)
 # With geodata library
+tempdir()
 covtemp <- worldclim_global(var = "tavg", res = 10,
                             path = tempdir())
 covprec <- worldclim_global(var = "prec", res = 10,

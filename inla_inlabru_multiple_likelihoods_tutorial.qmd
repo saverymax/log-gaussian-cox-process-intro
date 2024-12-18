@@ -110,11 +110,11 @@ There is also the ```replicate``` of INLA, where only the random effects share o
 
 Ehh, but how do we do this for a spatial model? Let's follow the example from the Blangiardo 2015 book. 
 ```{r blandgiardo}
+set.seed(2)
 n_y <- 15
 n_x <- 20
-set.seed(2)
-loc_y <- cbind(runif(n_y), runif(n_y))
 loc_x <- cbind(runif(n_x), runif(n_x))
+loc_y <- cbind(runif(n_y), runif(n_y))
 plot(loc_y)
 points(loc_x, pch=5, col="orange")
 ```
@@ -126,18 +126,16 @@ rmatern_sim <- function(coords, kappa, variance, lambda=1){
   cor.m <-  2^(1-lambda)/gamma(lambda)*(dist.m * kappa)^lambda * besselK(x=dist.m*kappa, nu=lambda) 
   diag(cor.m) <- 1
   Sigma <- variance*cor.m
-  c(chol(Sigma) %*% rnorm(n=n, mean=1, sd=1))
+  c(chol(Sigma) %*% rnorm(n=n, mean=0, sd=1))
 }
 
-set.seed(223)
 kappa_xi <- 5
 sigma2_xi <- 0.5
 kappa_u <- 7
 sigma2_u <- 0.3
-u <- rmatern_sim(loc_y, kappa_u, sigma2_u)
+u <- rmatern_sim(loc_y, kappa=kappa_u, variance=sigma2_u)
 u
 length(u)
-set.seed(233)
 xi <- rmatern_sim(rbind(loc_x, loc_y), kappa_xi, sigma2_xi)
 xi
 length(xi)
@@ -146,19 +144,23 @@ b0 <- 10
 beta1 <- 0.5
 sigma2_e <- 0.16
 sigma2_x <- 0.25
-set.seed(4455)
 # x will be the simulated realizations of the process at xi plus a little noise
 x <- xi[1:n_x] + rnorm(n=n_x, mean=0, sd=sqrt(sigma2_x))
 x
-set.seed(5544)
 # y will be the contribution of x through beta plus noise.
 y <- b0 + beta1*xi[n_x + 1:n_y] + u + rnorm(n=n_y, mean=0, sd=sqrt(sigma2_e))
 y
 ```
 
+
+TODO: Read the book a bit more about seatting up A stacks.
 ```{r inla-prep}
-mesh <- inla.mesh.2d(loc=rbind(loc_x, loc_y), max.edge=0.15, cutoff=0.3, offset=0.1)
-spde <- inla.spde2.matern(mesh, alpha=2)
+#mesh <- inla.mesh.2d(loc=rbind(loc_x, loc_y), max.edge=0.15, cutoff=0.3, offset=0.1)
+range_k <- sqrt(8) / kappa_u 
+range_k
+mesh <- inla.mesh.2d(loc=rbind(loc_x, loc_y), max.edge=c(0.2, 0.5), offset=c(1, 2))
+plot(mesh)
+spde <- inla.spde2.pcmatern(mesh, alpha=2, prior.range = c(0.5, 0.01), prior.sigma = c(1, 0.01))
 A_x <- inla.spde.make.A(mesh=mesh, loc=loc_x)
 dim(A_x)
 A_y <- inla.spde.make.A(mesh=mesh, loc=loc_y)
@@ -178,18 +180,20 @@ stk.y <- inla.stack(
   A = list(A_y, 1),
   tag = "est.y") 
 stk <- inla.stack(stk.x, stk.y)
-
 ```
 We put the priors in a list fed into the hyper argument.
 
 See <https://becarioprecario.bitbucket.io/inla-gitbook/ch-priors.html>.
 ```{r fit-inla}
-formula <- y ~ -1 + f(xi.field, model=spde) + 
-  intercept + f(u.field, model=spde) + 
+formula <- y ~ -1 + intercept + f(xi.field, model=spde) + 
+  f(u.field, model=spde) + 
   f(x.field, copy="xi.field", fixed=F, 
     hyper=list(theta=list(param=c(-1,10))))
 
-precprior <- list(theta=list(prior = 'loggamma', param=c(1,0.1)))
+#precprior <- list(theta=list(prior = 'loggamma', param=c(1,0.1)))
+# Following from https://becarioprecario.bitbucket.io/spde-gitbook/ch-manipula.html#simulation-from-the-model
+# the prior in the book wasn't allowing proper estimation of the precision
+precprior <- list(prec = list(prior = 'pc.prec', param = c(0.2, 0.5)))
 
 fit_multi_lik <- inla(formula, family=c("gaussian", "gaussian"),
                       data=inla.stack.data(stk),
@@ -210,18 +214,16 @@ Also, why does x share field with $\xi$?
 See the example here: <https://inlabru-org.github.io/inlabru/articles/2d_lgcp_multilikelihood.html>
 ```{r inlabru-setup}
 # Same mesh as last
-mesh <- inla.mesh.2d(loc=rbind(loc_x, loc_y), max.edge=0.15, cutoff=0.3, offset=0.1)
+mesh <- inla.mesh.2d(loc=rbind(loc_x, loc_y), max.edge=c(0.2, 0.5), offset=c(1, 2))
+plot(mesh)
+spde <- inla.spde2.pcmatern(mesh, alpha=2, prior.range = c(0.5, 0.01), prior.sigma = c(1, 0.01))
+
 x_sf <- st_as_sf(data.frame(loc_x), coords = c("X1", "X2"))
 x_sf$x <- x
 y_sf <- st_as_sf(data.frame(loc_y), coords = c("X1", "X2"))
 y_sf$y <- y
-spde <- inla.spde2.pcmatern(mesh, alpha=2, prior.range = c(0.5, 0.01), prior.sigma = c(1, 0.01))
-# One question for my own data: whta to set priors to?
-#  prior.range = c(0.1, 0.01),
-#  prior.sigma = c(1, 0.01)
-#)
-# Default is gaussian so we don't need to name it but useful to see.
-gaus.prior <-  list(prior = 'gaussian', param = c(-1, 2))
+
+gaus.prior <-  list(prior = 'gaussian', param = c(-1, 10))
 
 shared_component <- ~ y_field(geometry, model=spde) + xi_field(geometry, model=spde) + x_field(geometry,  copy="xi_field", fixed = F, hyper = list(theta = gaus.prior)) + Intercept(1)
 # Structure for each variable
@@ -242,27 +244,30 @@ lik_y <- bru_obs("gaussian",
 )
 # Again the same precision prior
 #precision_prior <- list(theta=list(prior = 'logtnormal', param=c(0,2)))
-precision_prior <- list(theta=list(prior = 'loggamma', param=c(1,0.1)))
+precprior <- list(prec = list(prior = 'pc.prec', param = c(0.2, 0.5)))
 
 fit_multi_lik_inlabru <- bru(shared_component, lik_x, lik_y,
   options = list(
-    control.family=list(list(hyper=precision_prior), list(hyper=precision_prior)),
+    control.family=list(list(hyper=precprior), list(hyper=precprior)),
     control.inla = list(
-      strategy = "simplified.lapplace",
+      strategy = "simplified.laplace",
       int.strategy = "eb")
     )
   )
 ```
-Check the fitt
+Check and compare the fit between inlabru and INLA.
 
-TODO, 12-16: Just messing with the priors and trying to figure out why precision is so badly estimated. A bit hard to tell actually. I messed around with the priors and that fixed some things and changed outhers.
-And put my own data in.
 ```{r check-fit}
 summary(fit_multi_lik_inlabru)
 ```
+Yay, getting the priors right finally got INLA and INLABRU to the same result.
 ```{r plot-fit}
 #fit_multi_lik_inlabru$summary.random$xi_field$mean
 library(patchwork)
+
+ggplot() + 
+  gg(mesh, col = fit_multi_lik_inlabru$summary.random$y_field$mean)
+
 pl.major <- ggplot() +
   gg(mesh,
     #mask = gorillas_sf$boundary,
