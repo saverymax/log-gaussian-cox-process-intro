@@ -2,12 +2,12 @@
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
 
 <meta charset="utf-8">
-<meta name="generator" content="quarto-1.5.56">
+<meta name="generator" content="quarto-1.6.39">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>3&nbsp; Approximation – Log-Gaussian Cox Processes: Approximations and Usage</title>
+<title>3&nbsp; Approximation – INLA and Log Gaussian Cox Processes: Theory and Application</title>
 <style>
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
@@ -30,17 +30,16 @@ ul.task-list li input[type="checkbox"] {
 <script src="site_libs/quarto-search/fuse.min.js"></script>
 <script src="site_libs/quarto-search/quarto-search.js"></script>
 <meta name="quarto:offset" content="./">
-<link href="./summary.html" rel="next">
 <link href="./theory.html" rel="prev">
 <script src="site_libs/quarto-html/quarto.js"></script>
 <script src="site_libs/quarto-html/popper.min.js"></script>
 <script src="site_libs/quarto-html/tippy.umd.min.js"></script>
 <script src="site_libs/quarto-html/anchor.min.js"></script>
 <link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
-<link href="site_libs/quarto-html/quarto-syntax-highlighting.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-e26003cea8cd680ca0c55a263523d882.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="site_libs/bootstrap/bootstrap.min.css" rel="stylesheet" id="quarto-bootstrap" data-mode="light">
+<link href="site_libs/bootstrap/bootstrap-cd7de1037569933fbb609f06423bd096.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "sidebar",
   "copy-button": false,
@@ -125,7 +124,7 @@ window.Quarto = {
   <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation floating overflow-auto">
     <div class="pt-lg-2 mt-2 text-left sidebar-header">
     <div class="sidebar-title mb-0 py-0">
-      <a href="./">Log-Gaussian Cox Processes: Approximations and Usage</a> 
+      <a href="./">INLA and Log Gaussian Cox Processes: Theory and Application</a> 
     </div>
       </div>
         <div class="mt-2 flex-shrink-0 align-items-center">
@@ -150,25 +149,13 @@ window.Quarto = {
         <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./theory.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">LGCP theory</span></span></a>
+ <span class="menu-text"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">Poisson Point Process and LGCP theory</span></span></a>
   </div>
 </li>
         <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./approximation.html" class="sidebar-item-text sidebar-link active">
  <span class="menu-text"><span class="chapter-number">3</span>&nbsp; <span class="chapter-title">Approximation</span></span></a>
-  </div>
-</li>
-        <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./summary.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">4</span>&nbsp; <span class="chapter-title">Conclusion.</span></span></a>
-  </div>
-</li>
-        <li class="sidebar-item">
-  <div class="sidebar-item-container"> 
-  <a href="./references.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">References</span></a>
   </div>
 </li>
     </ul>
@@ -218,7 +205,7 @@ window.Quarto = {
 </section>
 <section id="inla" class="level2" data-number="3.2">
 <h2 data-number="3.2" class="anchored" data-anchor-id="inla"><span class="header-section-number">3.2</span> INLA</h2>
-<p>INLA is a numerical approximation based on <span class="citation" data-cites="rue2009">(<a href="references.html#ref-rue2009" role="doc-biblioref"><strong>rue2009?</strong></a>)</span>.</p>
+<p>INLA is a numerical approximation based on <span class="citation" data-cites="rue2009">(<a href="#ref-rue2009" role="doc-biblioref"><strong>rue2009?</strong></a>)</span>.</p>
 <p>For software: Illian 2013, Rue 2013b, Lindgren 2015.</p>
 </section>
 <section id="spde" class="level2" data-number="3.3">
@@ -234,7 +221,7 @@ u(s) = \sum^m_{k=1}\psi_k(s)w_k
 </section>
 <section id="mesh" class="level2" data-number="3.4">
 <h2 data-number="3.4" class="anchored" data-anchor-id="mesh"><span class="header-section-number">3.4</span> Mesh</h2>
-<p>Finally, <span class="citation" data-cites="Simpson2016">(<a href="references.html#ref-Simpson2016" role="doc-biblioref"><strong>Simpson2016?</strong></a>)</span> improved upon the representation of the GRMF using a dual mush across the region.</p>
+<p>Finally, <span class="citation" data-cites="Simpson2016">(<a href="#ref-Simpson2016" role="doc-biblioref"><strong>Simpson2016?</strong></a>)</span> improved upon the representation of the GRMF using a dual mush across the region.</p>
 <p>From the book by E.T. Krainski et al.&nbsp;(2019): ” They develop this solution by considering basis functions carefully chosen to preserve the sparse structure of the resulting precision matrix for the random field at a set of mesh nodes. This provides an explicit link between a continuous random field and a GMRF representation, which allows efficient computations.”</p>
 
 
@@ -323,8 +310,6 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
   });
   clipboard.on('success', onCopySuccess);
   if (window.document.getElementById('quarto-embedded-source-code-modal')) {
-    // For code content inside modals, clipBoardJS needs to be initialized with a container option
-    // TODO: Check when it could be a function (https://github.com/zenorocha/clipboard.js/issues/860)
     const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
       text: getTextToCopy,
       container: window.document.getElementById('quarto-embedded-source-code-modal')
@@ -435,7 +420,6 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
       if (window.Quarto?.typesetMath) {
         window.Quarto.typesetMath(note);
       }
-      // TODO in 1.5, we should make sure this works without a callout special case
       if (note.classList.contains("callout")) {
         return note.outerHTML;
       } else {
@@ -663,14 +647,11 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
 </script>
 <nav class="page-navigation">
   <div class="nav-page nav-page-previous">
-      <a href="./theory.html" class="pagination-link" aria-label="LGCP theory">
-        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">LGCP theory</span></span>
+      <a href="./theory.html" class="pagination-link" aria-label="Poisson Point Process and LGCP theory">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">Poisson Point Process and LGCP theory</span></span>
       </a>          
   </div>
   <div class="nav-page nav-page-next">
-      <a href="./summary.html" class="pagination-link" aria-label="Conclusion.">
-        <span class="nav-page-text"><span class="chapter-number">4</span>&nbsp; <span class="chapter-title">Conclusion.</span></span> <i class="bi bi-arrow-right-short"></i>
-      </a>
   </div>
 </nav>
 </div> <!-- /content -->
