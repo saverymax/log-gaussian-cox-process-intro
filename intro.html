@@ -121,7 +121,7 @@ ul.task-list li input[type="checkbox"] {
         <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./theory.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">Poisson Point Process and LGCP theory</span></span></a>
+ <span class="menu-text"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">LGCP theory</span></span></a>
   </div>
 </li>
         <li class="sidebar-item">
@@ -160,7 +160,8 @@ ul.task-list li input[type="checkbox"] {
 </header>
 
 
-<p>This is a blog post about Log Gaussian Cox Processes (LGCP). These are a type of point process models incorporating a Gaussian Random Field. Doing so allows us to take into account spatial or temporal correlation across our region. Statistically, this is quite an advantageous improvement from the Poisson Point Process. However, the inclusion of the random field presents mathematical and computational challenges. We will address some of these here and cover the basic state of the literature regarding these problems .</p>
+<p>This is a blog post about Log-Gaussian Cox Processes (LGCP). It is a follow up to the earlier blog post I made about Poisson Point Process models. In fact, the LGCP is an extension of the Poisson Point Process, in that a latent correlation structure is included in the point process model. Specifically, the LGCP uses a Gaussian Random Field to characterize the intensity of the point process. Doing so allows us to take into account spatial or temporal correlation across our region or period of interest.</p>
+<p>Statistically, this is quite an advantageous improvement from the Poisson Point Process where spatial correlation could only be accounted for via covariates. However, the inclusion of the random field presents mathematical and computational challenges. We will address these challenges here, making use of the Integrated Nested Laplace Approximation (INLA) approach.</p>
 
 
 
@@ -589,8 +590,8 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
       </a>          
   </div>
   <div class="nav-page nav-page-next">
-      <a href="./theory.html" class="pagination-link" aria-label="Poisson Point Process and LGCP theory">
-        <span class="nav-page-text"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">Poisson Point Process and LGCP theory</span></span> <i class="bi bi-arrow-right-short"></i>
+      <a href="./theory.html" class="pagination-link" aria-label="LGCP theory">
+        <span class="nav-page-text"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">LGCP theory</span></span> <i class="bi bi-arrow-right-short"></i>
       </a>
   </div>
 </nav>

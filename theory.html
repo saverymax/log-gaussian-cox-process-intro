@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>2&nbsp; Poisson Point Process and LGCP theory – INLA and Log Gaussian Cox Processes: Theory and Application</title>
+<title>2&nbsp; LGCP theory – INLA and Log Gaussian Cox Processes: Theory and Application</title>
 <style>
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
@@ -110,7 +110,7 @@ window.Quarto = {
       <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
         <i class="bi bi-layout-text-sidebar-reverse"></i>
       </button>
-        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./theory.html"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">Poisson Point Process and LGCP theory</span></a></li></ol></nav>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./theory.html"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">LGCP theory</span></a></li></ol></nav>
         <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
         </a>
       <button type="button" class="btn quarto-search-button" aria-label="Search" onclick="window.quartoOpenSearch();">
@@ -150,7 +150,7 @@ window.Quarto = {
         <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./theory.html" class="sidebar-item-text sidebar-link active">
- <span class="menu-text"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">Poisson Point Process and LGCP theory</span></span></a>
+ <span class="menu-text"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">LGCP theory</span></span></a>
   </div>
 </li>
         <li class="sidebar-item">
@@ -170,10 +170,10 @@ window.Quarto = {
    
   <ul>
   <li><a href="#inla" id="toc-inla" class="nav-link active" data-scroll-target="#inla"><span class="header-section-number">2.1</span> INLA</a></li>
-  <li><a href="#covariance-matrices" id="toc-covariance-matrices" class="nav-link" data-scroll-target="#covariance-matrices"><span class="header-section-number">2.2</span> Covariance Matrices</a></li>
-  <li><a href="#mesh" id="toc-mesh" class="nav-link" data-scroll-target="#mesh"><span class="header-section-number">2.3</span> Mesh</a></li>
-  <li><a href="#simpson-2016" id="toc-simpson-2016" class="nav-link" data-scroll-target="#simpson-2016"><span class="header-section-number">2.4</span> Simpson 2016</a></li>
-  <li><a href="#inla-lgcp" id="toc-inla-lgcp" class="nav-link" data-scroll-target="#inla-lgcp"><span class="header-section-number">2.5</span> INLA + LGCP</a></li>
+  <li><a href="#spde-connection" id="toc-spde-connection" class="nav-link" data-scroll-target="#spde-connection"><span class="header-section-number">2.2</span> SPDE connection</a></li>
+  <li><a href="#covariance-matrices" id="toc-covariance-matrices" class="nav-link" data-scroll-target="#covariance-matrices"><span class="header-section-number">2.3</span> Covariance Matrices</a></li>
+  <li><a href="#mesh" id="toc-mesh" class="nav-link" data-scroll-target="#mesh"><span class="header-section-number">2.4</span> Mesh</a></li>
+  <li><a href="#simpson-2016" id="toc-simpson-2016" class="nav-link" data-scroll-target="#simpson-2016"><span class="header-section-number">2.5</span> Simpson 2016</a></li>
   </ul>
 </nav>
     </div>
@@ -182,7 +182,7 @@ window.Quarto = {
 
 <header id="title-block-header" class="quarto-title-block default">
 <div class="quarto-title">
-<h1 class="title"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">Poisson Point Process and LGCP theory</span></h1>
+<h1 class="title"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">LGCP theory</span></h1>
 </div>
 
 
@@ -199,46 +199,53 @@ window.Quarto = {
 </header>
 
 
-<p>A Poisson point process is a stochastic set of random variables in 2D space. The LGCP is a version of this incorporates spatial and potentially temporal correlation into a model for this point process, including the number of points in the spatial domain and the locations of the points.</p>
-<p>See <span class="citation" data-cites="camelitti-2013">(<a href="#ref-camelitti-2013" role="doc-biblioref"><strong>camelitti-2013?</strong></a>)</span> to set up the pieces for the spatial-temporal covariance bits.</p>
-<p>Finish augmenting notes with: <a href="https://www.paulamoraga.com/book-spatial/sec-geostatisticaldataSPDE.html" class="uri">https://www.paulamoraga.com/book-spatial/sec-geostatisticaldataSPDE.html</a> and <a href="https://becarioprecario.bitbucket.io/spde-gitbook" class="uri">https://becarioprecario.bitbucket.io/spde-gitbook</a></p>
-<p>In the Poisson Point Process the intensity is written as <span class="math display">\[
+<p>A Poisson point process is a stochastic set of random variables in 2D space. The LGCP extends the process by incorporating spatial and potentially temporal correlation into the model. <span class="citation" data-cites="diggle-2013">(<a href="#ref-diggle-2013" role="doc-biblioref"><strong>diggle-2013?</strong></a>)</span> is a good reference for these type of models. I’ll give some details below, and once the required mathematical details are presented, I will discuss the INLA approach for actually estimating the model.</p>
+<p>In the Poisson Point Process the intensity is parameterized as <span class="math display">\[
 \lambda(s) = \theta(s)b(s) = \exp[\alpha + \beta'x(s) + \gamma + \delta'z(s)]
-\]</span> In the LGCP we now incorporate a Gaussian Random Field to incorporate spatial correlation between sites <span class="math display">\[
+\]</span> In the LGCP we now incorporate a Gaussian Random Field (also described as Gaussian spatial field, spatial random effects, or latent spatial field) to incorporate spatial correlation between sites <span class="math display">\[
 \lambda(s) = \theta(s)b(s) = \exp[\alpha + \beta'x(s) + \gamma + \delta'z(s) + w(s)]
-\]</span> so that the expected value for quadrat <span class="math inline">\(A\)</span> will be the integral over the quadrat: <span class="math display">\[
+\]</span> The Gaussian Random field <span class="math inline">\(w(s)\)</span> can be thought of as a continuous spatial effect that is evaluated at certain locations. random effect. With this parameterization, the expected value for quadrat <span class="math inline">\(A\)</span> will be the integral over the quadrat: <span class="math display">\[
 \Delta(A) = \int_A\lambda(s)ds = \int_A \exp[\alpha + \beta'x(s) + \gamma + \delta'z(s) + w(s)]ds
-\]</span></p>
-<p>However, this forces to use a covariance structure that grows in size as the area of interest increases in area. Thus, the computational complexity to estimate such covariance structure as <span class="math inline">\(n\)</span> increases makes this approach inhibitively costly for large regions. Using MCMC to estimate this model is possible, but slow.</p>
+\]</span> However, this forces us to use a covariance structure that grows in size as the area of interest or the number of observations increase in area. Thus, the computational complexity makes this approach prohibitively costly for large regions when using MCMC approaches to estimate this model.</p>
 <section id="inla" class="level2" data-number="2.1">
 <h2 data-number="2.1" class="anchored" data-anchor-id="inla"><span class="header-section-number">2.1</span> INLA</h2>
-<p>Integrated Nested Laplace Approximations have been proposed by <span class="citation" data-cites="rue-2009">(<a href="#ref-rue-2009" role="doc-biblioref"><strong>rue-2009?</strong></a>)</span> as a fast way to estimate LGCPs. Follow <a href="https://www.paulamoraga.com/book-spatial/sec-geostatisticaldataSPDE.html" class="uri">https://www.paulamoraga.com/book-spatial/sec-geostatisticaldataSPDE.html</a>, we define <span class="math display">\[
-Y_i|S(s_i) \sim N(\mu + S(s_i), \tau^2), i=1,...,n.
-\]</span> Here <span class="math inline">\(\mu\)</span> is a constant effect and <span class="math inline">\(S(s_i)\)</span> refers to the spatial field.</p>
-<p>The SPDE approach represents the continuous Gaussian Field with a discretely indexed Gaussian Markov Random Field, using a basis function defined on a triangulation of the region of interest.</p>
-<p>From <a href="https://www.youtube.com/watch?v=Tdb5EPczE9E&amp;ab_channel=TomislavHengl%28OpenGeoHubFoundation%29" class="uri">https://www.youtube.com/watch?v=Tdb5EPczE9E&amp;ab_channel=TomislavHengl%28OpenGeoHubFoundation%29</a> and <a href="https://www.paulamoraga.com/book-geospatial/sec-geostatisticaldatatheory.html" class="uri">https://www.paulamoraga.com/book-geospatial/sec-geostatisticaldatatheory.html</a>. INLA computes the posterior marginals for the latent Guassian field and the hyperparameters. <span class="math display">\[
-p(x_i|y) = \int p(x_i|\theta,y)p(\theta|y)d\theta
+<p>Integrated Nested Laplace Approximations have been proposed by <span class="citation" data-cites="rue-2009">(<a href="#ref-rue-2009" role="doc-biblioref"><strong>rue-2009?</strong></a>)</span> as a fast way to estimate models with latent Gaussian structure. From the paper, we are concerned with models with an additive predictor that takes the general form <span class="math display">\[
+\eta_i = \alpha + \sum^{n_f}_{j=1}f^{(j)}(u_{ij}) + \sum^{n_{\beta}}_{k=1} \beta_kz_{ki} + \epsilon_i
+\]</span> where <span class="math inline">\(\alpha\)</span> is an intercept, <span class="math inline">\(f\)</span> are unknown functions of <span class="math inline">\(u\)</span>, and <span class="math inline">\(\beta\)</span> are the typical fixed effects effect for covariates <span class="math inline">\(z\)</span>.</p>
+<p>The joint posterior is written as <span class="math display">\[
+\begin{aligned}
+\pi(x,\theta|y)\propto\pi(\theta)\pi(x|\theta)\prod_{i\in I}\pi(y_i|x_i,\theta)\\
+\propto\pi(\theta)|Q(\theta)|^{1/2}\exp\bigg[\frac{1}{2}x^TQ(\theta)x+\sum_{i\in I}\log\{\pi(y_i|x_i,\theta)\}\bigg],
+\end{aligned}
 \]</span></p>
+<p>The main point of INLA is to make the nested approximations of the hyperparameters <span class="math display">\[
+p(\theta_j|y) = \int p(\theta|y)d\theta_{j}
+\]</span></p>
+<p>and the latent field <span class="math display">\[
+\tilde{\pi}(x_i|y) = \int \tilde{\pi}(x_i|\theta,y)\tilde{\pi}(\theta|y)d\theta,
+\]</span></p>
+<p>TODO: Finish the notes from this, and just maybe making some details of it concrete in my head. Also, should this blog be LGCPs only or INLA in general? The LGCP thing isn’t that special really. So maybe make it INLA for spatial models, and have a part on genarlly continuous model and then do the tutorial, then do the LGCP model, then do combined likelihoods.</p>
 </section>
-<section id="covariance-matrices" class="level2" data-number="2.2">
-<h2 data-number="2.2" class="anchored" data-anchor-id="covariance-matrices"><span class="header-section-number">2.2</span> Covariance Matrices</h2>
+<section id="spde-connection" class="level2" data-number="2.2">
+<h2 data-number="2.2" class="anchored" data-anchor-id="spde-connection"><span class="header-section-number">2.2</span> SPDE connection</h2>
+<p>The SPDE approach represents the continuous Gaussian Field with a discretely indexed Gaussian Markov Random Field, using a basis function defined on a triangulation of the region of interest.</p>
+</section>
+<section id="covariance-matrices" class="level2" data-number="2.3">
+<h2 data-number="2.3" class="anchored" data-anchor-id="covariance-matrices"><span class="header-section-number">2.3</span> Covariance Matrices</h2>
 <p>The matern covariance <span class="math display">\[
 r(u,v) = \frac{\sigma^2}{2^{\nu-1}\Gamma(\nu)}(\kappa ||v-u||)^\nu K_\nu(\kappa ||v-u||).
 \]</span></p>
 <p>From <a href="https://www.youtube.com/watch?v=CCuWHaYxVFg&amp;ab_channel=RConsortium" class="uri">https://www.youtube.com/watch?v=CCuWHaYxVFg&amp;ab_channel=RConsortium</a>: The precision matrix is sparse for Markovian process. Gaussian distributoins with sparse precision matrices are Guassian Markov Random Fields</p>
 </section>
-<section id="mesh" class="level2" data-number="2.3">
-<h2 data-number="2.3" class="anchored" data-anchor-id="mesh"><span class="header-section-number">2.3</span> Mesh</h2>
+<section id="mesh" class="level2" data-number="2.4">
+<h2 data-number="2.4" class="anchored" data-anchor-id="mesh"><span class="header-section-number">2.4</span> Mesh</h2>
 <p>The mesh is is used to project the discrete GRMF to the continuous GF using some spatial weights defined at the vertices of the mesh (did I say that right?). From the Moraga tutorial above, she says the continuous process is estimated using a weighted average of the process at the vertices of the discrete triangulation mesh.</p>
 <p>The projection matrix maps the GMRF from the observations to the triangulation nodes. The observation will be the weighted average using the weights and values from the triangulation and projection matrix. <span class="math display">\[
 S(x_i) \approx \sum^G_{g=1}A_{ig}S_g
 \]</span></p>
 </section>
-<section id="simpson-2016" class="level2" data-number="2.4">
-<h2 data-number="2.4" class="anchored" data-anchor-id="simpson-2016"><span class="header-section-number">2.4</span> Simpson 2016</h2>
-</section>
-<section id="inla-lgcp" class="level2" data-number="2.5">
-<h2 data-number="2.5" class="anchored" data-anchor-id="inla-lgcp"><span class="header-section-number">2.5</span> INLA + LGCP</h2>
+<section id="simpson-2016" class="level2" data-number="2.5">
+<h2 data-number="2.5" class="anchored" data-anchor-id="simpson-2016"><span class="header-section-number">2.5</span> Simpson 2016</h2>
 
 
 </section>

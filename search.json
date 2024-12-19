@@ -14,7 +14,7 @@
     "href": "intro.html",
     "title": "1  Introduction",
     "section": "",
-    "text": "This is a blog post about Log Gaussian Cox Processes (LGCP). These are a type of point process models incorporating a Gaussian Random Field. Doing so allows us to take into account spatial or temporal correlation across our region. Statistically, this is quite an advantageous improvement from the Poisson Point Process. However, the inclusion of the random field presents mathematical and computational challenges. We will address some of these here and cover the basic state of the literature regarding these problems .",
+    "text": "This is a blog post about Log-Gaussian Cox Processes (LGCP). It is a follow up to the earlier blog post I made about Poisson Point Process models. In fact, the LGCP is an extension of the Poisson Point Process, in that a latent correlation structure is included in the point process model. Specifically, the LGCP uses a Gaussian Random Field to characterize the intensity of the point process. Doing so allows us to take into account spatial or temporal correlation across our region or period of interest.\nStatistically, this is quite an advantageous improvement from the Poisson Point Process where spatial correlation could only be accounted for via covariates. However, the inclusion of the random field presents mathematical and computational challenges. We will address these challenges here, making use of the Integrated Nested Laplace Approximation (INLA) approach.",
     "crumbs": [
       "<span class='chapter-number'>1</span>  <span class='chapter-title'>Introduction</span>"
     ]
@@ -22,51 +22,51 @@
   {
     "objectID": "theory.html",
     "href": "theory.html",
-    "title": "2  Poisson Point Process and LGCP theory",
+    "title": "2  LGCP theory",
     "section": "",
-    "text": "2.1 INLA\nA Poisson point process is a stochastic set of random variables in 2D space. The LGCP is a version of this incorporates spatial and potentially temporal correlation into a model for this point process, including the number of points in the spatial domain and the locations of the points.\nSee (camelitti-2013?) to set up the pieces for the spatial-temporal covariance bits.\nFinish augmenting notes with: https://www.paulamoraga.com/book-spatial/sec-geostatisticaldataSPDE.html and https://becarioprecario.bitbucket.io/spde-gitbook\nIn the Poisson Point Process the intensity is written as \\[\n\\lambda(s) = \\theta(s)b(s) = \\exp[\\alpha + \\beta'x(s) + \\gamma + \\delta'z(s)]\n\\] In the LGCP we now incorporate a Gaussian Random Field to incorporate spatial correlation between sites \\[\n\\lambda(s) = \\theta(s)b(s) = \\exp[\\alpha + \\beta'x(s) + \\gamma + \\delta'z(s) + w(s)]\n\\] so that the expected value for quadrat \\(A\\) will be the integral over the quadrat: \\[\n\\Delta(A) = \\int_A\\lambda(s)ds = \\int_A \\exp[\\alpha + \\beta'x(s) + \\gamma + \\delta'z(s) + w(s)]ds\n\\]\nHowever, this forces to use a covariance structure that grows in size as the area of interest increases in area. Thus, the computational complexity to estimate such covariance structure as \\(n\\) increases makes this approach inhibitively costly for large regions. Using MCMC to estimate this model is possible, but slow.\nIntegrated Nested Laplace Approximations have been proposed by (rue-2009?) as a fast way to estimate LGCPs. Follow https://www.paulamoraga.com/book-spatial/sec-geostatisticaldataSPDE.html, we define \\[\nY_i|S(s_i) \\sim N(\\mu + S(s_i), \\tau^2), i=1,...,n.\n\\] Here \\(\\mu\\) is a constant effect and \\(S(s_i)\\) refers to the spatial field.\nThe SPDE approach represents the continuous Gaussian Field with a discretely indexed Gaussian Markov Random Field, using a basis function defined on a triangulation of the region of interest.\nFrom https://www.youtube.com/watch?v=Tdb5EPczE9E&ab_channel=TomislavHengl%28OpenGeoHubFoundation%29 and https://www.paulamoraga.com/book-geospatial/sec-geostatisticaldatatheory.html. INLA computes the posterior marginals for the latent Guassian field and the hyperparameters. \\[\np(x_i|y) = \\int p(x_i|\\theta,y)p(\\theta|y)d\\theta\n\\]",
+    "text": "2.1 INLA\nA Poisson point process is a stochastic set of random variables in 2D space. The LGCP extends the process by incorporating spatial and potentially temporal correlation into the model. (diggle-2013?) is a good reference for these type of models. I’ll give some details below, and once the required mathematical details are presented, I will discuss the INLA approach for actually estimating the model.\nIn the Poisson Point Process the intensity is parameterized as \\[\n\\lambda(s) = \\theta(s)b(s) = \\exp[\\alpha + \\beta'x(s) + \\gamma + \\delta'z(s)]\n\\] In the LGCP we now incorporate a Gaussian Random Field (also described as Gaussian spatial field, spatial random effects, or latent spatial field) to incorporate spatial correlation between sites \\[\n\\lambda(s) = \\theta(s)b(s) = \\exp[\\alpha + \\beta'x(s) + \\gamma + \\delta'z(s) + w(s)]\n\\] The Gaussian Random field \\(w(s)\\) can be thought of as a continuous spatial effect that is evaluated at certain locations. random effect. With this parameterization, the expected value for quadrat \\(A\\) will be the integral over the quadrat: \\[\n\\Delta(A) = \\int_A\\lambda(s)ds = \\int_A \\exp[\\alpha + \\beta'x(s) + \\gamma + \\delta'z(s) + w(s)]ds\n\\] However, this forces us to use a covariance structure that grows in size as the area of interest or the number of observations increase in area. Thus, the computational complexity makes this approach prohibitively costly for large regions when using MCMC approaches to estimate this model.\nIntegrated Nested Laplace Approximations have been proposed by (rue-2009?) as a fast way to estimate models with latent Gaussian structure. From the paper, we are concerned with models with an additive predictor that takes the general form \\[\n\\eta_i = \\alpha + \\sum^{n_f}_{j=1}f^{(j)}(u_{ij}) + \\sum^{n_{\\beta}}_{k=1} \\beta_kz_{ki} + \\epsilon_i\n\\] where \\(\\alpha\\) is an intercept, \\(f\\) are unknown functions of \\(u\\), and \\(\\beta\\) are the typical fixed effects effect for covariates \\(z\\).\nThe joint posterior is written as \\[\n\\begin{aligned}\n\\pi(x,\\theta|y)\\propto\\pi(\\theta)\\pi(x|\\theta)\\prod_{i\\in I}\\pi(y_i|x_i,\\theta)\\\\\n\\propto\\pi(\\theta)|Q(\\theta)|^{1/2}\\exp\\bigg[\\frac{1}{2}x^TQ(\\theta)x+\\sum_{i\\in I}\\log\\{\\pi(y_i|x_i,\\theta)\\}\\bigg],\n\\end{aligned}\n\\]\nThe main point of INLA is to make the nested approximations of the hyperparameters \\[\np(\\theta_j|y) = \\int p(\\theta|y)d\\theta_{j}\n\\]\nand the latent field \\[\n\\tilde{\\pi}(x_i|y) = \\int \\tilde{\\pi}(x_i|\\theta,y)\\tilde{\\pi}(\\theta|y)d\\theta,\n\\]\nTODO: Finish the notes from this, and just maybe making some details of it concrete in my head. Also, should this blog be LGCPs only or INLA in general? The LGCP thing isn’t that special really. So maybe make it INLA for spatial models, and have a part on genarlly continuous model and then do the tutorial, then do the LGCP model, then do combined likelihoods.",
     "crumbs": [
-      "<span class='chapter-number'>2</span>  <span class='chapter-title'>Poisson Point Process and LGCP theory</span>"
+      "<span class='chapter-number'>2</span>  <span class='chapter-title'>LGCP theory</span>"
+    ]
+  },
+  {
+    "objectID": "theory.html#spde-connection",
+    "href": "theory.html#spde-connection",
+    "title": "2  LGCP theory",
+    "section": "2.2 SPDE connection",
+    "text": "2.2 SPDE connection\nThe SPDE approach represents the continuous Gaussian Field with a discretely indexed Gaussian Markov Random Field, using a basis function defined on a triangulation of the region of interest.",
+    "crumbs": [
+      "<span class='chapter-number'>2</span>  <span class='chapter-title'>LGCP theory</span>"
     ]
   },
   {
     "objectID": "theory.html#covariance-matrices",
     "href": "theory.html#covariance-matrices",
-    "title": "2  Poisson Point Process and LGCP theory",
-    "section": "2.2 Covariance Matrices",
-    "text": "2.2 Covariance Matrices\nThe matern covariance \\[\nr(u,v) = \\frac{\\sigma^2}{2^{\\nu-1}\\Gamma(\\nu)}(\\kappa ||v-u||)^\\nu K_\\nu(\\kappa ||v-u||).\n\\]\nFrom https://www.youtube.com/watch?v=CCuWHaYxVFg&ab_channel=RConsortium: The precision matrix is sparse for Markovian process. Gaussian distributoins with sparse precision matrices are Guassian Markov Random Fields",
+    "title": "2  LGCP theory",
+    "section": "2.3 Covariance Matrices",
+    "text": "2.3 Covariance Matrices\nThe matern covariance \\[\nr(u,v) = \\frac{\\sigma^2}{2^{\\nu-1}\\Gamma(\\nu)}(\\kappa ||v-u||)^\\nu K_\\nu(\\kappa ||v-u||).\n\\]\nFrom https://www.youtube.com/watch?v=CCuWHaYxVFg&ab_channel=RConsortium: The precision matrix is sparse for Markovian process. Gaussian distributoins with sparse precision matrices are Guassian Markov Random Fields",
     "crumbs": [
-      "<span class='chapter-number'>2</span>  <span class='chapter-title'>Poisson Point Process and LGCP theory</span>"
+      "<span class='chapter-number'>2</span>  <span class='chapter-title'>LGCP theory</span>"
     ]
   },
   {
     "objectID": "theory.html#mesh",
     "href": "theory.html#mesh",
-    "title": "2  Poisson Point Process and LGCP theory",
-    "section": "2.3 Mesh",
-    "text": "2.3 Mesh\nThe mesh is is used to project the discrete GRMF to the continuous GF using some spatial weights defined at the vertices of the mesh (did I say that right?). From the Moraga tutorial above, she says the continuous process is estimated using a weighted average of the process at the vertices of the discrete triangulation mesh.\nThe projection matrix maps the GMRF from the observations to the triangulation nodes. The observation will be the weighted average using the weights and values from the triangulation and projection matrix. \\[\nS(x_i) \\approx \\sum^G_{g=1}A_{ig}S_g\n\\]",
+    "title": "2  LGCP theory",
+    "section": "2.4 Mesh",
+    "text": "2.4 Mesh\nThe mesh is is used to project the discrete GRMF to the continuous GF using some spatial weights defined at the vertices of the mesh (did I say that right?). From the Moraga tutorial above, she says the continuous process is estimated using a weighted average of the process at the vertices of the discrete triangulation mesh.\nThe projection matrix maps the GMRF from the observations to the triangulation nodes. The observation will be the weighted average using the weights and values from the triangulation and projection matrix. \\[\nS(x_i) \\approx \\sum^G_{g=1}A_{ig}S_g\n\\]",
     "crumbs": [
-      "<span class='chapter-number'>2</span>  <span class='chapter-title'>Poisson Point Process and LGCP theory</span>"
+      "<span class='chapter-number'>2</span>  <span class='chapter-title'>LGCP theory</span>"
     ]
   },
   {
     "objectID": "theory.html#simpson-2016",
     "href": "theory.html#simpson-2016",
-    "title": "2  Poisson Point Process and LGCP theory",
-    "section": "2.4 Simpson 2016",
-    "text": "2.4 Simpson 2016",
+    "title": "2  LGCP theory",
+    "section": "2.5 Simpson 2016",
+    "text": "2.5 Simpson 2016",
     "crumbs": [
-      "<span class='chapter-number'>2</span>  <span class='chapter-title'>Poisson Point Process and LGCP theory</span>"
-    ]
-  },
-  {
-    "objectID": "theory.html#inla-lgcp",
-    "href": "theory.html#inla-lgcp",
-    "title": "2  Poisson Point Process and LGCP theory",
-    "section": "2.5 INLA + LGCP",
-    "text": "2.5 INLA + LGCP",
-    "crumbs": [
-      "<span class='chapter-number'>2</span>  <span class='chapter-title'>Poisson Point Process and LGCP theory</span>"
+      "<span class='chapter-number'>2</span>  <span class='chapter-title'>LGCP theory</span>"
     ]
   },
   {
