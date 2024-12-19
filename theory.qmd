@@ -1,45 +1,57 @@
-# Poisson Point Process and LGCP theory 
+# LGCP theory
 
-A Poisson point process is a stochastic set of random variables in 2D space. The LGCP is a version of this incorporates spatial and potentially temporal correlation into a model for this point process, including the number of points in the spatial domain and the locations of the points.
-  
-See @camelitti-2013 to set up the pieces for the spatial-temporal covariance bits. 
+A Poisson point process is a stochastic set of random variables in 2D space. The LGCP extends the process by incorporating spatial and potentially temporal correlation into the model. @diggle-2013 is a good reference for these type of models. I'll give some details below, and once the required mathematical details are presented, I will discuss the INLA approach for actually estimating the model. 
 
-Finish augmenting notes with:
-<https://www.paulamoraga.com/book-spatial/sec-geostatisticaldataSPDE.html> and 
-<https://becarioprecario.bitbucket.io/spde-gitbook>
-
-In the Poisson Point Process the intensity is written as
+In the Poisson Point Process the intensity is parameterized as
 $$
 \lambda(s) = \theta(s)b(s) = \exp[\alpha + \beta'x(s) + \gamma + \delta'z(s)]
 $$
-In the LGCP we now incorporate a Gaussian Random Field to incorporate spatial correlation between sites
+In the LGCP we now incorporate a Gaussian Random Field (also described as Gaussian spatial field, spatial random effects, or latent  spatial field) to incorporate spatial correlation between sites
 $$
 \lambda(s) = \theta(s)b(s) = \exp[\alpha + \beta'x(s) + \gamma + \delta'z(s) + w(s)]
 $$
-so that the expected value for quadrat $A$ will be the integral over the quadrat:
+The Gaussian Random field $w(s)$ can be thought of as a continuous spatial effect that is evaluated at certain locations. 
+random effect. With this parameterization, the expected value for quadrat $A$ will be the integral over the quadrat:
 $$
 \Delta(A) = \int_A\lambda(s)ds = \int_A \exp[\alpha + \beta'x(s) + \gamma + \delta'z(s) + w(s)]ds
 $$
-
-However, this forces to use a covariance structure that grows in size as the area of interest increases in area. Thus, the computational complexity
-to estimate such covariance structure as $n$ increases makes this approach inhibitively costly for large regions. Using MCMC to estimate this model is possible, but slow.
+However, this forces us to use a covariance structure that grows in size as the area of interest or the number of observations increase in area. Thus, the computational complexity makes this approach prohibitively costly for large regions when using MCMC approaches to estimate this model.
 
 ## INLA
 
-Integrated Nested Laplace Approximations have been proposed by @rue-2009 as a fast way to estimate LGCPs. Follow <https://www.paulamoraga.com/book-spatial/sec-geostatisticaldataSPDE.html>, we define
+Integrated Nested Laplace Approximations have been proposed by @rue-2009 as a fast way to estimate models with latent Gaussian structure. From the paper, we are concerned with models with an additive predictor that takes the general form
 $$
-Y_i|S(s_i) \sim N(\mu + S(s_i), \tau^2), i=1,...,n.
+\eta_i = \alpha + \sum^{n_f}_{j=1}f^{(j)}(u_{ij}) + \sum^{n_{\beta}}_{k=1} \beta_kz_{ki} + \epsilon_i
 $$
-Here $\mu$ is a constant effect and $S(s_i)$ refers to the spatial field.
+where $\alpha$ is an intercept, $f$ are unknown functions of $u$, and $\beta$ are the typical fixed effects effect for covariates $z$. 
+
+The joint posterior is written as
+$$
+\begin{aligned}
+\pi(x,\theta|y)\propto\pi(\theta)\pi(x|\theta)\prod_{i\in I}\pi(y_i|x_i,\theta)\\
+\propto\pi(\theta)|Q(\theta)|^{1/2}\exp\bigg[\frac{1}{2}x^TQ(\theta)x+\sum_{i\in I}\log\{\pi(y_i|x_i,\theta)\}\bigg],
+\end{aligned}
+$$
+
+
+The main point of INLA is to make the nested approximations of the hyperparameters 
+$$
+p(\theta_j|y) = \int p(\theta|y)d\theta_{j}
+$$
+
+
+and the latent field
+$$
+\tilde{\pi}(x_i|y) = \int \tilde{\pi}(x_i|\theta,y)\tilde{\pi}(\theta|y)d\theta,
+$$
+
+TODO: Finish the notes from this, and just maybe making some details of it concrete in my head. Also, should this blog be LGCPs only or INLA in general? The LGCP thing isn't that special really. So maybe make it INLA for spatial models, and have a part on
+genarlly continuous model and then do the tutorial, then do the LGCP model, then do combined likelihoods.
+
+## SPDE connection
 
 The SPDE approach represents the continuous Gaussian Field with a discretely indexed Gaussian Markov Random Field, using a basis function defined on a triangulation of the region of interest.
 
-
-From <https://www.youtube.com/watch?v=Tdb5EPczE9E&ab_channel=TomislavHengl%28OpenGeoHubFoundation%29> and <https://www.paulamoraga.com/book-geospatial/sec-geostatisticaldatatheory.html>. 
-INLA computes the posterior marginals for the latent Guassian field and the hyperparameters.
-$$
-p(x_i|y) = \int p(x_i|\theta,y)p(\theta|y)d\theta
-$$
 
 
 ## Covariance Matrices
@@ -64,6 +76,3 @@ S(x_i) \approx \sum^G_{g=1}A_{ig}S_g
 $$
 
 ## Simpson 2016
-
-## INLA + LGCP
-
