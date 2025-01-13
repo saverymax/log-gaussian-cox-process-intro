@@ -9,8 +9,7 @@ book:
     - index.qmd
     - intro.qmd
     - theory.qmd
-    - approximation.qmd
-    #- lgcp.qmd
+    - inla_inlabru_tutorial_netherlands_data.qmd
     #- preferential_sampling.qmd
     #- summary.qmd
     #- references.qmd

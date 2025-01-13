@@ -1,0 +1,232 @@
+
+# Implementation of LGCP in INLA and INLABRU
+
+Having completed an examination of Air Pollutoin modelling in INLA and INLABRU, it is time to move on to modelling the point process
+
+Using data from GBIF.org (10 January 2025) GBIF Occurrence Download https://doi.org/10.15468/dl.p5cy6n
+
+## LGCP in INLA introduction
+
+Following https://www.paulamoraga.com/book-spatial/point-process-modeling.html for the INLA intro.
+
+```{r set-up}
+library(INLA)
+library(inlabru)
+library(sf)
+library(spocc)
+library(rnaturalearth)
+library(ggplot2)
+library(viridis)
+library(terra)
+```
+
+
+```{r data}
+df <- occ(query = "solanum", from = "gbif",
+          date = c("2015-01-01", "2022-12-31"),
+          gbifopts = list(country = "BO"),
+          has_coords = TRUE, limit = 1000)
+d <- occ2df(df)
+d <- st_as_sf(d[, 2:3], coords = c("longitude", "latitude"))
+d
+st_crs(d) <- "EPSG:4326"
+st_crs("EPSG:5356")$proj4string
+projUTM <- "+proj=utm +zone=19 +south +ellps=GRS80
++towgs84=0,0,0,0,0,0,0 +units=km +no_defs"
+projUTM
+d <- st_transform(d, crs = projUTM)
+```
+
+```{r map}
+map <- ne_countries(type = "countries", country = "Bolivia",
+                    scale = "medium", returnclass = "sf")
+map <- st_transform(map, crs = projUTM)
+coo <- st_coordinates(d)
+ggplot() + geom_sf(data = map) +
+  geom_sf(data = d) + coord_sf(datum = projUTM)
+```
+
+```{r prediction-locations}
+# raster grid covering map
+grid <- terra::rast(map, nrows = 50, ncols = 50)
+# coordinates of all cells
+xy <- terra::xyFromCell(grid, 1:ncell(grid))
+# transform points to a sf object
+dp <- st_as_sf(as.data.frame(xy), coords = c("x", "y"),
+               crs = st_crs(map))
+
+# indices points within the map
+indicespointswithin <- which(st_intersects(dp, map,
+                                           sparse = FALSE))
+
+# points within the map
+dp <- st_filter(dp, map)
+
+ggplot() + geom_sf(data = map) +
+  geom_sf(data = dp) + coord_sf(datum = projUTM)
+coop <- st_coordinates(dp)
+```
+
+```{r mesh}
+loc.d <- cbind(st_coordinates(map)[, 1], st_coordinates(map)[, 2])
+
+mesh <- inla.mesh.2d(loc.domain = loc.d, max.edge = c(50, 100),
+                     offset = c(50, 100), cutoff = 1, crs=crs(d))
+plot(mesh)
+points(coo, col = "red")
+axis(1)
+axis(2)
+(nv <- mesh$n)
+(n <- nrow(coo))
+```
+```{r inla-spde}
+spde <- inla.spde2.matern(mesh = mesh, alpha = 2, constr = TRUE)
+```
+
+```{r dual-mesh}
+book.mesh.dual <- function(mesh) {
+    if (mesh$manifold=='R2') {
+        ce <- t(sapply(1:nrow(mesh$graph$tv), function(i)
+            colMeans(mesh$loc[mesh$graph$tv[i, ], 1:2])))
+        library(parallel)
+        pls <- mclapply(1:mesh$n, function(i) {
+            p <- unique(Reduce('rbind', lapply(1:3, function(k) {
+            j <- which(mesh$graph$tv[,k]==i)
+            if (length(j)>0) 
+            return(rbind(ce[j, , drop=FALSE],
+            cbind(mesh$loc[mesh$graph$tv[j, k], 1] +
+            mesh$loc[mesh$graph$tv[j, c(2:3,1)[k]], 1], 
+            mesh$loc[mesh$graph$tv[j, k], 2] +
+            mesh$loc[mesh$graph$tv[j, c(2:3,1)[k]], 2])/2))
+            else return(ce[j, , drop=FALSE])
+            })))
+            j1 <- which(mesh$segm$bnd$idx[,1]==i)
+            j2 <- which(mesh$segm$bnd$idx[,2]==i)
+            if ((length(j1)>0) | (length(j2)>0)) {
+            p <- unique(rbind(mesh$loc[i, 1:2], p,
+            mesh$loc[mesh$segm$bnd$idx[j1, 1], 1:2]/2 +
+            mesh$loc[mesh$segm$bnd$idx[j1, 2], 1:2]/2, 
+            mesh$loc[mesh$segm$bnd$idx[j2, 1], 1:2]/2 +
+            mesh$loc[mesh$segm$bnd$idx[j2, 2], 1:2]/2))
+            yy <- p[,2]-mean(p[,2])/2-mesh$loc[i, 2]/2
+            xx <- p[,1]-mean(p[,1])/2-mesh$loc[i, 1]/2
+            }
+            else {
+            yy <- p[,2]-mesh$loc[i, 2]
+            xx <- p[,1]-mesh$loc[i, 1]
+            }
+            Polygon(p[order(atan2(yy,xx)), ])
+        })
+        return(SpatialPolygons(lapply(1:mesh$n, function(i)
+            Polygons(list(pls[[i]]), i))))
+    }
+    else stop("It only works for R2!")
+}
+dmesh <- book.mesh.dual(mesh)
+plot(dmesh)
+axis(1)
+axis(2)
+```
+We then do something a little tricky. The mesh is larger than the domain that the points were observed in or the study region. So the intersections between the polygons in the mesh and the locations in $D$ are computed  
+```{r mesh-process}
+plot(loc.d)
+domain.polys <- Polygons(list(Polygon(loc.d)), '0')
+domainSP <- SpatialPolygons(list(domain.polys))
+plot(domainSP)
+domain_sf <- st_as_sf(domainSP)
+crs(domain_sf)
+domain_sf <- st_set_crs(domain_sf, projUTM)
+st_crs(domain_sf)
+plot(domain_sf)
+mesh_sf <- st_as_sf(dmesh)
+mesh_sf <- st_set_crs(mesh_sf, projUTM)
+# Check if the mesh polygons overlap with any of the locations 
+w <- sapply(1:length(dmesh), function(i) {
+  if(length(st_intersects(mesh_sf[i,], domain_sf)[[1]])>0){
+    return(sf::st_area(sf::st_intersection(mesh_sf[i, ], domain_sf)))
+  }
+  else return(0)
+})
+sum(w)
+st_area(map)
+```
+```{r plot-mesh}
+plot(mesh)
+plot(domain_sf, add=T, col="green")
+points(mesh$loc[which(w > 0), 1:2], col = "black", pch = 20)
+points(mesh$loc[which(w == 0), 1:2], col = "red", pch = 20)
+```
+
+```{r inla-matrices}
+y.pp <- rep(0:1, c(nv, n))
+e.pp <- c(w, rep(0, n))
+# Projection matrix for the integration points (mesh vertices)
+A.int <- Diagonal(nv, rep(1, nv))
+# Projection matrix for observed points (event locations)
+A.y <- inla.spde.make.A(mesh = mesh, loc = coo)
+# Projection matrix for mesh vertices and event locations
+A.pp <- rbind(A.int, A.y)
+
+# We also create the projection matrix Ap.pp for the prediction locations.
+Ap.pp <- inla.spde.make.A(mesh = mesh, loc = coop)
+```
+
+```{r inla-stacks}
+# stack for estimation
+stk.e.pp <- inla.stack(tag = "est.pp",
+data = list(y = y.pp, e = e.pp), 
+A = list(1, A.pp),
+effects = list(list(b0 = rep(1, nv + n)), list(s = 1:nv)))
+
+# stack for prediction stk.p
+stk.p.pp <- inla.stack(tag = "pred.pp",
+data = list(y = rep(NA, nrow(coop)), e = rep(0, nrow(coop))),
+A = list(1, Ap.pp),
+effects = list(data.frame(b0 = rep(1, nrow(coop))),
+               list(s = 1:nv)))
+
+# stk.full has stk.e and stk.p
+stk.full.pp <- inla.stack(stk.e.pp, stk.p.pp)
+```
+
+```{r lgcp-fit}
+formula <- y ~ 0 + b0 + f(s, model = spde)
+res <- inla(formula,  family = 'poisson',
+  data = inla.stack.data(stk.full.pp),
+  control.inla=list(int.strategy = 'grid', strategy="laplace"),
+  control.predictor = list(compute = TRUE, link = 1,
+    A = inla.stack.A(stk.full.pp)),
+    E = inla.stack.data(stk.full.pp)$e)
+```
+
+```{r check-fit}
+res$summary.fixed
+res$summary.hyperpar
+index <- inla.stack.index(stk.full.pp, tag = "pred.pp")$data
+pred_mean <- res$summary.fitted.values[index, "mean"]
+pred_ll <- res$summary.fitted.values[index, "0.025quant"]
+pred_ul <- res$summary.fitted.values[index, "0.975quant"]
+```
+
+
+We have to make sure to get the domain for the sampler correct. The INLA code does it above, but inlabru by default does not.
+
+More about that <https://inlabru-org.github.io/inlabru/articles/2d_lgcp_plotsampling.html>
+and actually the exact problem here: <https://groups.google.com/g/r-inla-discussion-group/c/0bBC9bVV-L4> even though the problem was with preferential sampling. In the mesh-process R section above, you can see the manipulation to get the domains correct for INLA. Even with including ```sampler=domain_sf``` here, the estimates are not exactly the same as INLA, but closer than it was before.
+
+TODO: What is this domain stuff for exactly? The integration? Should be equation 3 of Simpson (2016).
+```{r inlabru-fit}
+# TODO: Make sure I get the same result as inla. Options and mesh are off
+# Oh nice we can name the intercept but then need to subtract 1 to get rid of the default intercept
+formula_inlabru <- geometry ~ b0(1) - 1 + f(geometry, model = spde)
+crs(domain_sf)
+fit1 <- lgcp(formula_inlabru, data=d, sampler=domain_sf, domain = list(geometry = mesh), 
+             options = list(control.inla=list(int.strategy = 'grid', strategy="laplace")))
+#                          control.compute=list(config=TRUE),
+#                          control.results=list(return.marginals.random = TRUE,
+#                                               return.marginals.predictor = TRUE),
+#                          control.predictor = list(compute = TRUE)))
+
+summary(fit1)
+```
+Then, we can move onto multiple likelihoods and inlabru
