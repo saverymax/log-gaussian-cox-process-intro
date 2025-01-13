@@ -2,7 +2,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
 
 <meta charset="utf-8">
-<meta name="generator" content="quarto-1.6.39">
+<meta name="generator" content="quarto-1.6.40">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
@@ -37,10 +37,10 @@ ul.task-list li input[type="checkbox"] {
 <script src="site_libs/quarto-html/tippy.umd.min.js"></script>
 <script src="site_libs/quarto-html/anchor.min.js"></script>
 <link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
-<link href="site_libs/quarto-html/quarto-syntax-highlighting-e26003cea8cd680ca0c55a263523d882.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-549806ee2085284f45b00abea8c6df48.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="site_libs/bootstrap/bootstrap-cd7de1037569933fbb609f06423bd096.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="site_libs/bootstrap/bootstrap-78faf54a06e50be45dc6d83ab59297a7.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "sidebar",
   "copy-button": false,
@@ -126,8 +126,8 @@ ul.task-list li input[type="checkbox"] {
 </li>
         <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="./approximation.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">3</span>&nbsp; <span class="chapter-title">Approximation</span></span></a>
+  <a href="./inla_inlabru_tutorial_netherlands_data.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">3</span>&nbsp; <span class="chapter-title">Implementation of Spatial model with INLA and SPDE</span></span></a>
   </div>
 </li>
     </ul>
@@ -160,8 +160,10 @@ ul.task-list li input[type="checkbox"] {
 </header>
 
 
-<p>This is a blog post about Log-Gaussian Cox Processes (LGCP). It is a follow up to the earlier blog post I made about Poisson Point Process models. In fact, the LGCP is an extension of the Poisson Point Process, in that a latent correlation structure is included in the point process model. Specifically, the LGCP uses a Gaussian Random Field to characterize the intensity of the point process. Doing so allows us to take into account spatial or temporal correlation across our region or period of interest.</p>
-<p>Statistically, this is quite an advantageous improvement from the Poisson Point Process where spatial correlation could only be accounted for via covariates. However, the inclusion of the random field presents mathematical and computational challenges. We will address these challenges here, making use of the Integrated Nested Laplace Approximation (INLA) approach.</p>
+<p>This is a blog post about Log-Gaussian Cox Processes (LGCP). It is a follow up to the earlier blog post I made about Poisson Point Process models. In fact, the LGCP is an extension of the Poisson Point Process, in that a latent correlation structure is included in the point process model. Specifically, the LGCP uses a Gaussian Random Field to characterize the intensity of the point process. Doing so allows us to take into account spatial or temporal correlation across our region or period of interest. Statistically, this is quite an advantageous improvement from the Poisson Point Process where spatial correlation could only be accounted for via covariates. However, the inclusion of the random field presents mathematical and computational challenges. We will address these challenges here, making use of the Integrated Nested Laplace Approximation (INLA) approach.</p>
+<p>The general structure of this post is as follows: I will first introduce the LGCP, but only briefly, as most of the theory is the same for the Poisson Process as the LGCP. Then, I’ll spend some time covering the INLA method and the accompanying R packages, <code>INLA</code> and <code>inlabru</code>. I’ll compare these packages for fitting models of continuous measures and, of course, point processes. At some point I will end the post and continue later with another about fitting multiple likelihood models in <code>inla</code>, such as for the purpose of accounting for preferential sampling.</p>
+<p>The reason I am writing about this is because having a model that incorporates spatial (or temporal) correlation via the Gaussian field is necessary to properly model both point processes (such as the Presence-only data of the last blog) or continuous measures in spatial-temporal intervals (such as air pollution). Not including correlation via the GF means that you then assume the covariates included in your model are sufficient to account for spatial fluctuations in the measurement. The problem with this is that is there no direct mechanism to relate the behavior of the process at one location to the behavior at another location. The GF does exactly this, taking into account the spatial dependence between measurement locations.</p>
+<p>So this is a more technical topic. The only thing we want to do is include spatial dependence, but we have to first learn a whole new method of approximation and software framework to be able to do so. However, the advantage is the INLA method/software is sufficiently general so that we can tackle a whole set of spatial-temporal modelling problems using the same approach. In fact, the INLA approach allows us to work with both continuous, discrete, and point-type data, and to combine the likelihoods of different datasets as long as the underlying process shares a set of parameters. That is really useful!</p>
 
 
 
