@@ -117,7 +117,6 @@ air_sf$covprec <- extract(mean(covprec), st_coordinates(air_sf))[, 1]
 # Extract at prediction locations
 dp$covtemp <- extract(mean(covtemp), st_coordinates(dp))[, 1]
 dp$covprec <- extract(mean(covprec), st_coordinates(dp))[, 1]
-dp$covprec
 
 ggplot() + geom_sf(data = map) +
   geom_sf(data = air_sf, aes(col = Value)) +
