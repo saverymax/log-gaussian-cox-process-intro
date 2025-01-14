@@ -13,37 +13,56 @@ Following https://www.paulamoraga.com/book-spatial/point-process-modeling.html f
 library(INLA)
 library(inlabru)
 library(sf)
-library(spocc)
-library(rnaturalearth)
 library(ggplot2)
 library(viridis)
 library(terra)
+library(dplyr)
+library(readr)
 ```
 
-
+TODO: Fix issue reading data. StillIMage is doing something
 ```{r data}
-df <- occ(query = "solanum", from = "gbif",
-          date = c("2015-01-01", "2022-12-31"),
-          gbifopts = list(country = "BO"),
-          has_coords = TRUE, limit = 1000)
-d <- occ2df(df)
-d <- st_as_sf(d[, 2:3], coords = c("longitude", "latitude"))
-d
+file_name <- file.path("D:", "data", "gbif_observation_org_butterflies", "gbif_butterfly_observation-org", "gbif_subset_netherlands_lepidoptera.csv")
+d <- read_delim(file_name, delim='\t', col_types=cols(infraspecificEpithet=col_character()))
+d %>% filter(species=="Lasiommata megera") -> d
+dim(d)
+sum(is.na(d))
+d <- st_as_sf(d, coords = c("decimalLongitude", "decimalLatitude"))
 st_crs(d) <- "EPSG:4326"
-st_crs("EPSG:5356")$proj4string
-projUTM <- "+proj=utm +zone=19 +south +ellps=GRS80
-+towgs84=0,0,0,0,0,0,0 +units=km +no_defs"
-projUTM
-d <- st_transform(d, crs = projUTM)
+st_crs("EPSG:3857")$proj4string
+projMercator <- st_crs("EPSG:3857")$proj4string
+projMercator
+# Observed coordinates
+d <- st_transform(d, crs = projMercator)
+d
 ```
 
 ```{r map}
-map <- ne_countries(type = "countries", country = "Bolivia",
-                    scale = "medium", returnclass = "sf")
-map <- st_transform(map, crs = projUTM)
+?st_layers
+layers <- st_layers(file.path("D:", "data", "maps", "netherlands_bestuurlijkegrenzen_2021", "bestuurlijkegrenzen.gpkg"))
+#print(str(layers))
+map <- st_read(file.path("D:", "data", "maps", "netherlands_bestuurlijkegrenzen_2021", "bestuurlijkegrenzen.gpkg"), layer = "landsgrens")
+map <- st_union(map)
+map <- st_as_sf(map)
+plot(map)
+# Damn it, there's a little isolated spec in the map!
+border_polygon <- st_cast(map, "POLYGON")
+border_polygon <- st_as_sfc(border_polygon)
+geos <- lapply(border_polygon, function(x) x[1])
+for (g in geos){
+  plot(st_polygon(g))
+}
+# Get the border polygon
+border_final <- st_polygon(geos[[1]])
+# We still need sf object
+border_final <- st_sfc(border_final, crs=st_crs(map))
+border_final <- st_as_sf(border_final)
+plot(border_final)
+map <- border_final
+map <- st_transform(map, crs = projMercator)
 coo <- st_coordinates(d)
 ggplot() + geom_sf(data = map) +
-  geom_sf(data = d) + coord_sf(datum = projUTM)
+  geom_sf(data = d) + coord_sf(datum = projMercator)
 ```
 
 ```{r prediction-locations}
@@ -63,15 +82,18 @@ indicespointswithin <- which(st_intersects(dp, map,
 dp <- st_filter(dp, map)
 
 ggplot() + geom_sf(data = map) +
-  geom_sf(data = dp) + coord_sf(datum = projUTM)
+  geom_sf(data = dp) + coord_sf(datum = projMercator)
 coop <- st_coordinates(dp)
 ```
 
+Hmm, why do I need such a large unit? Something with mercator? Oh, am I in meters?
 ```{r mesh}
+map
 loc.d <- cbind(st_coordinates(map)[, 1], st_coordinates(map)[, 2])
-
-mesh <- inla.mesh.2d(loc.domain = loc.d, max.edge = c(50, 100),
-                     offset = c(50, 100), cutoff = 1, crs=crs(d))
+#mesh <- inla.mesh.2d(loc=coo, max.edge = c(50000, 100000))
+#mesh <- inla.mesh.2d(loc.domain=loc.d)
+mesh <- inla.mesh.2d(loc.domain = loc.d, max.edge = c(50000, 100000), crs=crs(d))
+mesh
 plot(mesh)
 points(coo, col = "red")
 axis(1)
@@ -135,11 +157,11 @@ domainSP <- SpatialPolygons(list(domain.polys))
 plot(domainSP)
 domain_sf <- st_as_sf(domainSP)
 crs(domain_sf)
-domain_sf <- st_set_crs(domain_sf, projUTM)
+domain_sf <- st_set_crs(domain_sf, projMercator)
 st_crs(domain_sf)
 plot(domain_sf)
 mesh_sf <- st_as_sf(dmesh)
-mesh_sf <- st_set_crs(mesh_sf, projUTM)
+mesh_sf <- st_set_crs(mesh_sf, projMercator)
 # Check if the mesh polygons overlap with any of the locations 
 w <- sapply(1:length(dmesh), function(i) {
   if(length(st_intersects(mesh_sf[i,], domain_sf)[[1]])>0){
@@ -156,7 +178,7 @@ plot(domain_sf, add=T, col="green")
 points(mesh$loc[which(w > 0), 1:2], col = "black", pch = 20)
 points(mesh$loc[which(w == 0), 1:2], col = "red", pch = 20)
 ```
-
+TODO: January 13th. Okay, now i'm stuck again. Finish later
 ```{r inla-matrices}
 y.pp <- rep(0:1, c(nv, n))
 e.pp <- c(w, rep(0, n))
@@ -206,6 +228,20 @@ index <- inla.stack.index(stk.full.pp, tag = "pred.pp")$data
 pred_mean <- res$summary.fitted.values[index, "mean"]
 pred_ll <- res$summary.fitted.values[index, "0.025quant"]
 pred_ul <- res$summary.fitted.values[index, "0.975quant"]
+grid$mean <- NA
+grid$ll <- NA
+grid$ul <- NA
+
+grid$mean[indicespointswithin] <- pred_mean
+grid$ll[indicespointswithin] <- pred_ll
+grid$ul[indicespointswithin] <- pred_ul
+```
+Then plot the predicted intensity
+```{r plot-preds-inla}
+#| eval: false
+plot(grid)
+geom_sf(data=grid, aes(color=mean)) +
+  scale_colour_gradient(low = "blue", high = "yellow")
 ```
 
 
@@ -219,9 +255,8 @@ TODO: What is this domain stuff for exactly? The integration? Should be equation
 # TODO: Make sure I get the same result as inla. Options and mesh are off
 # Oh nice we can name the intercept but then need to subtract 1 to get rid of the default intercept
 formula_inlabru <- geometry ~ b0(1) - 1 + f(geometry, model = spde)
-crs(domain_sf)
 fit1 <- lgcp(formula_inlabru, data=d, sampler=domain_sf, domain = list(geometry = mesh), 
-             options = list(control.inla=list(int.strategy = 'grid', strategy="laplace")))
+             options = list(control.inla=list(int.strategy = 'ccd', strategy="laplace")))
 #                          control.compute=list(config=TRUE),
 #                          control.results=list(return.marginals.random = TRUE,
 #                                               return.marginals.predictor = TRUE),
@@ -229,4 +264,19 @@ fit1 <- lgcp(formula_inlabru, data=d, sampler=domain_sf, domain = list(geometry 
 
 summary(fit1)
 ```
+TODO: Oh wow, why is b0 so different between inla and inlabru.
+```{r preds-intensity}
+predictions1 <- predict(fit1, newdata=dp, formula = ~ b0 + f)
+predictions2 <- predict(fit1, newdata=dp, formula = ~ f)
+ggplot() +
+geom_sf(data=predictions1, aes(color=mean)) +
+  scale_colour_gradient(low = "blue", high = "yellow")
+# Check the contribution of just the spatial field
+ggplot() +
+geom_sf(data=predictions2, aes(color=mean)) +
+  scale_colour_gradient(low = "blue", high = "yellow")
+```
+
+
+
 Then, we can move onto multiple likelihoods and inlabru

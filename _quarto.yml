@@ -10,7 +10,7 @@ book:
     - intro.qmd
     - theory.qmd
     - inla_inlabru_tutorial_netherlands_data.qmd
-    #- preferential_sampling.qmd
+    - inla_inlabru_lgcp_tutorial_netherlands_data.qmd
     #- summary.qmd
     #- references.qmd
 

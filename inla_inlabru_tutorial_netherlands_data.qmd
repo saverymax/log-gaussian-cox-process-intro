@@ -1,15 +1,11 @@
 
-# Implementation of Spatial model with INLA and SPDE
+# Spatial modelling with INLA and SPDE
 
-Having covered the need-to-know material for INLA and SPDE, next I'm going to build a spatial model using both ```INLA``` and ```inlabru```. Comparing the two packages is useful because, though they can be expected to give the same results in most cases, the implementation is a bit different and knowing when using the more complicated ```INLA``` can be justified is a useful exercise I think. 
+Having covered the need-to-know material for INLA and SPDE, next I'm going to build a spatial model using both ```INLA``` and ```inlabru```. Comparing the two packages is useful because, though they can be expected to give the same results in most cases, the implementation is a bit different. Knowing when using the more complicated ```INLA``` can be justified is a useful exercise, I think. 
 
-I found https://becarioprecario.bitbucket.io/spde-gitbook/ch-lcox.html and https://becarioprecario.bitbucket.io/inla-gitbook/ch-INLA.html good for details about inla and such specifications, but more clear in general. The example for inla is from Moraga.
+I found <https://becarioprecario.bitbucket.io/spde-gitbook/ch-lcox.html> and <https://becarioprecario.bitbucket.io/inla-gitbook/ch-INLA.html> good for details about inla and such specifications. However, this initial tutorial follows that of the book of Paula Moraga <https://www.paulamoraga.com/book-spatial/sec-geostatisticaldataSPDE.html>, because I found her writing a bit more concise and clear. 
 
-This initial part follows that of the book of Moraga <https://www.paulamoraga.com/book-spatial/sec-geostatisticaldataSPDE.html>.
-
-  Data from <https://www.paulamoraga.com/book-spatial/data/PM25USA2022.csv>
-
-The model fit here is a simple geostatistical one.
+The model fit here is a simple geostatistical one:
 $$
 Y_i \sim N(u_i, \sigma^2)\\
 u_i = \beta_0\cdot\text{temp} + \beta_1\cdot\text{precipitation}_i + S(x_i).
@@ -258,8 +254,8 @@ Once the model is fit, we can inspect the fixed parameters and estimated latent 
 ```{r inspect-fit}
 res$summary.fixed
 # Latent field is here
-res$summary.random$s
-res$summary.hyperpar
+# res$summary.random$s
+# res$summary.hyperpar
 
 index <- inla.stack.index(stack = stk.full, tag = "pred")$data
 pred_mean <- res$summary.fitted.values[index, "mean"]
@@ -282,6 +278,7 @@ names.attr = c("Mean", "2.5 percentile", "97.5 percentile"))
 ```
 When ```compute=TRUE``` in ```control.predictor```, we can also obtain the output below. <https://www.paulamoraga.com/book-geospatial/sec-inla.html> is good for info about this.
 ```{r posterior-marginals}
+#| eval: false
 res$summary.fitted.values
 res$summary.linear.predictor
 ```
