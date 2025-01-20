@@ -63,6 +63,8 @@ map <- st_transform(map, crs = projMercator)
 coo <- st_coordinates(d)
 ggplot() + geom_sf(data = map) +
   geom_sf(data = d) + coord_sf(datum = projMercator)
+# Save this for later
+st_write(map, file.path("D:", "data", "maps", "netherlands_bestuurlijkegrenzen_2021", "clean_nl_boundary.gpkg"))
 ```
 
 ```{r prediction-locations}
@@ -264,7 +266,9 @@ fit1 <- lgcp(formula_inlabru, data=d, sampler=domain_sf, domain = list(geometry 
 
 summary(fit1)
 ```
+
 TODO: Oh wow, why is b0 so different between inla and inlabru.
+
 ```{r preds-intensity}
 predictions1 <- predict(fit1, newdata=dp, formula = ~ b0 + f)
 predictions2 <- predict(fit1, newdata=dp, formula = ~ f)

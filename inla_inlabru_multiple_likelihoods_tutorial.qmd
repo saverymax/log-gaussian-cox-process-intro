@@ -88,7 +88,6 @@ y.pois <- rpois(50, lambda = exp(2 * xx[151:200]))
 y <- matrix(NA, ncol = 2, nrow = 200)
 y[1:150, 1] <- y.gaus
 y[151:200, 2] <- y.pois
-y
 ```
 
 ```{r data-index}
