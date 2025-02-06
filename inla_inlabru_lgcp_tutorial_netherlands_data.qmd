@@ -5,6 +5,8 @@ Having completed an examination of Air Pollutoin modelling in INLA and INLABRU, 
 
 Using data from GBIF.org (10 January 2025) GBIF Occurrence Download https://doi.org/10.15468/dl.p5cy6n
 
+Here's a space-time point process example: <https://becarioprecario.bitbucket.io/spde-gitbook/ch-stapp.html#sec:burkitt>
+
 ## LGCP in INLA introduction
 
 Following https://www.paulamoraga.com/book-spatial/point-process-modeling.html for the INLA intro.

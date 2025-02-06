@@ -43,6 +43,7 @@ library(arrow)
 library(dplyr)
 library(stringr)
 library(readr)
+library(exactextractr)
 #data_path <- file.path("D:", "data", "air_quality_data", "belgium_eea", "E1a")
 data_path <- file.path("D:", "data", "air_quality_data", "netherlands_eea", "E1a")
 d <- open_dataset(data_path)
@@ -65,12 +66,16 @@ station_locations <- read_csv(station_location_path)
 station_locations <- rename(station_locations, Samplingpoint = 'Sampling Point Id')
 station_locations %>% 
   distinct(Samplingpoint, Longitude, Latitude) -> unique_locations
+unique_locations
 merged_df <- df %>% 
   left_join(unique_locations %>% select(Samplingpoint, Longitude, Latitude), by = "Samplingpoint")
 merged_df
 station_locations_sf <- st_as_sf(station_locations, coords = c("Longitude", "Latitude"))
 air_sf <- st_as_sf(merged_df, coords = c("Longitude", "Latitude"))
 st_crs(air_sf) <- "EPSG:4326"
+
+# Let's also select the amount of time that we will be working with
+air_sf <- air_sf %>% filter(Start<=as.POSIXct("2023-01-15"))
 air_sf
 ```
 Then examine the time series
@@ -86,16 +91,74 @@ plotting_stations %>%
     theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
     labs(title = "Time series of monitoring stations", x = "Time, hourly", y = "Conc (μg/m³)")
 ```
+It ends up being practical to model the daily time series, even if hourly time is more useful.
 
+One question for my overall work is if working at an hourly resolution is useful, and then I can easily limit the time that goes into my model, and perhaps use day just as a covariate. On the other hand, I can work at the daily resolution, but how useful are predictions at the resolution?
+```{r agg-time}
+# TODO: 1-23-2025 debugging: Using floor_date works to fit the model with a subset of the data
+# but once I do the grouping operation it does not work
+#air_sf %>% mutate(date=lubridate::floor_date(Start, "day"))
+# This is working
+#air_sf %>% mutate(date=lubridate::floor_date(Start, "day")) -> daily_air_sf #%>% group_by(date, Samplingpoint) -> daily_air_sf
+# This is what I want to work:
+air_sf %>% mutate(date=lubridate::floor_date(Start, "day")) %>% group_by(Samplingpoint, date) %>% 
+              summarise(Value=mean(Value)) -> daily_air_sf
+daily_air_sf
+
+#daily_air_sf <- air_sf
+# Don't need this with the above "working" code except to change class to date
+#daily_air_sf$date <- as.Date(daily_air_sf$Start)
+plotting_stations <- daily_air_sf[daily_air_sf$Samplingpoint%in%distinct_stations[c(1:2, 4)],]
+plotting_stations
+plotting_stations %>% 
+  ggplot(aes(x=date, y=Value)) + 
+    geom_line() + 
+    facet_wrap(~ Samplingpoint) +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+    labs(title = "Time series of monitoring stations", x = "Time, daily", y = "Conc (μg/m³)")
+```
+Not all stations have measurements for all days. Let's filter out the stations that are missing some days.
+
+```{r filter-stations}
+station_counts <- daily_air_sf %>% 
+  group_by(Samplingpoint) %>% 
+  summarise(n_obs = n())
+station_counts
+
+most_frequent_n <-  station_counts %>% 
+  count(n_obs) %>% 
+  slice_max(n, n = 1) %>% 
+  pull(n_obs)
+most_frequent_n
+
+filtered_stations <- station_counts %>% 
+  filter(n_obs == most_frequent_n) %>% 
+  pull(Samplingpoint)
+filtered_stations
+
+daily_air_sf <- daily_air_sf %>% 
+  filter(Samplingpoint %in% filtered_stations) 
+
+dim(daily_air_sf)
+
+distinct_stations_filtered <- unique(daily_air_sf$Samplingpoint)[1:15]
+plotting_stations <- daily_air_sf[daily_air_sf$Samplingpoint%in%distinct_stations_filtered,]
+plotting_stations %>% 
+  ggplot(aes(x=date, y=Value)) + 
+    geom_line() + 
+    facet_wrap(~ Samplingpoint) +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+    labs(title = "Time series of monitoring stations", x = "Time, daily", y = "Conc (μg/m³)")
+```
 Then let's load a map of the Netherlands. The border is from <https://service.pdok.nl/kadaster/bestuurlijkegrenzen/atom/bestuurlijke_grenzen.xml>.
 
 ```{r process-maps}
 map <- st_read(file.path("D:", "data", "maps", "netherlands_bestuurlijkegrenzen_2021", "bestuurlijkegrenzen.gpkg"))
 map <- st_union(map)
 map <- st_as_sf(map)
-map <- st_transform(map, crs = st_crs(air_sf))
+map <- st_transform(map, crs = st_crs(daily_air_sf))
 # raster grid covering map
-grid <- terra::rast(map, nrows = 100, ncols = 100)
+grid <- terra::rast(map, nrows = 10, ncols = 10)
 grid
 # coordinates of all cells
 xy <- terra::xyFromCell(grid, 1:ncell(grid))
@@ -121,29 +184,95 @@ nc_dir <- file.path("D:", "data", "air_quality_data",
                       "sentinel_download",  "processed_no2_nl.nc")
 no2_rast <- terra::rast(nc_dir)
 plot(no2_rast)
-
-air_sf %>% distinct(SamplingPoint)
-plot_daily <- daily_air %>% filter(day>=as.POSIXct("2024-05-15")&day<=as.POSIXct("2024-05-25"))
-plot_daily_sodaq <- sodaq_daily %>% filter((day>=as.POSIXct("2024-05-15"))&(day<=as.POSIXct("2024-05-25")))
-
+no2_rast
 ```
 We need to prep it for the INLA model. I need to extract the raster values for every station location and time point.
-# TODO: 1-21: Extract station locations from raster and at each time point.
+# Would be very helpful to first get the station ids and add into loc_sf 
 ```{r rast-process}
-library(exactextractr)
-station_coords <- st_coordinates(air_sf)
-set_station_loc <- as.data.frame(unique(station_coords))
-loc_sf <- st_as_sf(set_station_loc, coords = c("X", "Y"), crs = st_crs(air_sf)) 
-loc_sf
+all_stations <- daily_air_sf %>% select(Samplingpoint)
+loc_sf <- unique(all_stations)
+# We are also only going to use data for the period of January
+#air_sf$date <- as.Date(air_sf$Start) 
+daily_air_sf <- daily_air_sf %>% filter(date<as.Date("2023-02-01"))
+
 ggplot() +
   geom_sf(data = map, color=alpha("white",0.9)) +
   geom_sf(data=loc_sf, color=alpha("orange", 0.3)) +
   labs(title = "NL Monitoring Stations")+
   theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
   theme_minimal()
-no2_loc_extract <- exact_extract(no2_rast, loc_sf, "mean", progress=F)
+nlyr(no2_rast)
+no2_rast[[1]]
+extracted_values <- lapply(1:nlyr(no2_rast), function(i) {
+  raster_layer <- no2_rast[[i]]
+  terra::extract(raster_layer, loc_sf, 'mean') 
+})
+extracted_values[[1]]
+
+# 1. Add the date as a column to each dataframe
+for (i in 1:length(extracted_values)) {
+  extracted_values[[i]]$station_id <- loc_sf$Samplingpoint
+}
+extracted_values[[1]]
+library(reshape2)
+time_values <- terra::time(no2_rast)
+time_values
+names(extracted_values) <- time_values
+melted_df <- melt(extracted_values, id.vars = c("ID", "station_id"))
+melted_df
+# 3. Clean up the column names
+names(melted_df) <- c("ID", "Samplingpoint", "variable", "no2_column", "date")
+melted_df$date <- as.Date(melted_df$date)
+colnames(melted_df)
+colnames(daily_air_sf)
+sum(is.na(melted_df$no2_column))
+# Then merge this with the air_sf
+air_sf_joined <- left_join(daily_air_sf, melted_df %>% select(Samplingpoint, date, no2_column), by = c("Samplingpoint", "date"))
+sum(is.na(air_sf_joined$no2_column))
+sum(is.na(air_sf_joined))
+air_sf_joined
 ```
 
+```{r convert-mol}
+air_sf_joined$no2_column_ugm3 <- air_sf_joined$no2_column * 46.0055 * 1000
+sum(is.na(air_sf_joined$no2_column))
+```
+Hmm, how different are the stations per day? They are not exactly the same, but only a few change per day out of 53 total.
+```{r check-merge}
+station_list <- list()
+as.Date(air_sf_joined$date)
+air_sf_joined[which(as.Date(air_sf_joined$date)=="2023-01-04"),]
+
+for (di in seq_along(time_values)){
+  print(time_values[di])
+  single_day <- air_sf_joined %>% filter(date==as.Date(time_values[di]))
+  station_list[[di]] <- unique(single_day$Samplingpoint)
+  p <- ggplot() + geom_sf(data = map) +
+    geom_sf(data = single_day, aes(col = no2_column_ugm3)) +
+    scale_color_viridis()
+  print(p)
+}
+station_list
+# Missing some stations per day.
+all(sapply(station_list, identical, station_list[[1]]))
+
+#library(gganimate)
+#p <- ggplot() +
+#  geom_sf(data = map, color=alpha("black",0.9),linewidth=1.5, fill='transparent') +
+#  geom_sf(data = air_sf_joined, aes(col = no2_column_ugm3)) +
+#  scale_fill_viridis() +
+#  coord_sf() +
+#  labs(title = "Tropospheric NO2 Column - {date}",  # Dynamic title
+#       x = "Longitude",
+#       y = "Latitude") +
+#  transition_states(
+#    date, transition_length = 2, state_length = 1
+#  ) +
+#  enter_fade() +
+#  exit_fade() +
+#  ease_aes('linear')
+#animate(p, renderer = gifski_renderer())
+```
 More data process
 ```{r process-data-2}
 library(geodata)
@@ -154,20 +283,20 @@ covtemp <- worldclim_global(var = "tavg", res = 10,
 covprec <- worldclim_global(var = "prec", res = 10,
                             path = save_path)
 # Extract at observed locations
-air_sf$covtemp <- extract(mean(covtemp), st_coordinates(air_sf))[, 1]
-air_sf$covprec <- extract(mean(covprec), st_coordinates(air_sf))[, 1]
+air_sf_joined$covtemp <- extract(mean(covtemp), st_coordinates(air_sf_joined))[, 1]
+air_sf_joined$covprec <- extract(mean(covprec), st_coordinates(air_sf_joined))[, 1]
 # Extract at prediction locations
 dp$covtemp <- extract(mean(covtemp), st_coordinates(dp))[, 1]
 dp$covprec <- extract(mean(covprec), st_coordinates(dp))[, 1]
 
 ggplot() + geom_sf(data = map) +
-  geom_sf(data = air_sf, aes(col = Value)) +
+  geom_sf(data = air_sf_joined, aes(col = Value)) +
   scale_color_viridis()
 ggplot() + geom_sf(data = map) +
-  geom_sf(data = air_sf, aes(col = covtemp)) +
+  geom_sf(data = air_sf_joined, aes(col = covtemp)) +
   scale_color_viridis()
 ggplot() + geom_sf(data = map) +
-  geom_sf(data = air_sf, aes(col = covprec)) +
+  geom_sf(data = air_sf_joined, aes(col = covprec)) +
   scale_color_viridis()
 ggplot() + geom_sf(data = map) +
   geom_sf(data = dp, aes(col = covtemp)) +
@@ -175,6 +304,18 @@ ggplot() + geom_sf(data = map) +
 ggplot() + geom_sf(data = map) +
   geom_sf(data = dp, aes(col = covprec)) +
   scale_color_viridis()
+```
+Then do the extraction for prediction points
+
+TODO: Oh, wait, this only makes sense using future time points. So then, I need to split 
+my dataset of get future data. Let's split it
+```{r extract-for-pred}
+extracted_pred_values <- lapply(1:nlyr(no2_rast), function(i) {
+  raster_layer <- no2_rast[[i]]
+  terra::extract(raster_layer, dp, 'mean') 
+})
+extracted_pred_values[[1]]
+
 ```
 
 Looks like there is a couple of nans in there. Let's impute using the mean.
@@ -193,7 +334,7 @@ Saw in the forum <https://groups.google.com/g/r-inla-discussion-group/c/z_v2oIh2
 st_crs("EPSG:3857")$proj4string
 projMercator<-"+proj=merc +a=6378137 +b=6378137 +lat_ts=0 +lon_0=0
 +x_0=0 +y_0=0 +k=1 +units=km +nadgrids=@null +wktext +no_defs"
-air_sf_project <- st_transform(air_sf, crs = projMercator)
+air_sf_project <- st_transform(air_sf_joined, crs = projMercator)
 dp <- st_transform(dp, crs = projMercator)
 # Observed coordinates
 coo <- st_coordinates(air_sf_project)
@@ -202,26 +343,11 @@ coo <- st_coordinates(air_sf_project)
 coop <- st_coordinates(dp)
 summary(dist(coo)) # summary of distances between locations
 ```
-Mesh options are from <https://punama.github.io/BDI_INLA/#:~:text=stack%20function.,list%20of%20effects%20(effects).>
-```max.edge``` controls the largest triangle edge length, and providing it with a vector ```c(inner, outer)``` sets the max edge for inside the boundary and outside the boundary. The purpose of this is to avoid boundary effects in the estimation of the model, where boundary values have high variance. Lindgren and Rue (2015) suggest to extend the domain by some amount. This is briefly discussed in the book by Blangiardo (2015).
+``max.edge``` controls the largest triangle edge length, and providing it with a vector ```c(inner, outer)``` sets the max edge for inside the boundary and outside the boundary. The purpose of this is to avoid boundary effects in the estimation of the model, where boundary values have high variance. Lindgren and Rue (2015) suggest to extend the domain by some amount. This is briefly discussed in the book by Blangiardo (2015).
 
 ```cutoff``` is the minimum allowed distance between points. Otherwise, points are replaced by a single vertex. For areas of high clusters of points, this could be useful to reduce redundancy. If no ```boundary``` is set the mesh is created on the convex hull of the observations.
 
-This was inspired from <https://punama.github.io/BDI_INLA/>. Thanks!
 ```{r inla-mesh}
-mesh0 <- inla.mesh.2d(loc = coo, max.edge=c(200, 500))
-mesh1 <- inla.mesh.2d(loc = coo, max.edge=c(200, 500), cutoff=1)
-mesh2 <- inla.mesh.2d(loc = coo, max.edge=c(100, 150), cutoff=1)
-mesh3 <- inla.mesh.2d(loc = coo, max.edge=c(100), cutoff=1)
-mesh4 <- inla.mesh.2d(loc = coo, max.edge=c(500, 750))
-mesh5 <- inla.mesh.2d(loc = coo, max.edge=c(500, 750), cutoff=1)
-plot(mesh0)
-plot(mesh1)
-plot(mesh2)
-plot(mesh3)
-plot(mesh4)
-plot(mesh5)
-# Using mesh0
 mesh <-inla.mesh.2d(loc = coo, max.edge=c(200, 500), crs=st_crs(air_sf_project))
 mesh$n
 ```
@@ -275,6 +401,8 @@ $$
 $$
 so there is some contribution from fixed effects as well as a unknown latent process modelled as a zero-mean Gaussian Random Field with Matern covariance function. This puts us well within INLA territory. The model equation can be seen quite clearly in the ```formula``` variable below.
 
+TODO: Fit the cameletti model in INLA.
+
 ```{r inla-model}
 formula <- y ~ 0 + b0 + covtemp + covprec + f(s, model = spde)
 res <- inla(formula, family = "gaussian",
@@ -287,10 +415,6 @@ Notice that I am passing a few options to the ```inla``` call. Importantly, ```c
 
 ```control.predictor``` will compute the posterior marginals of the parameters.
 
-The options:
-```{r control-compute}
-inla.set.control.compute.default()
-```
 Once the model is fit, we can inspect the fixed parameters and estimated latent field, as well as the hyperparameters for the latent field.
 ```{r inspect-fit}
 res$summary.fixed
@@ -324,71 +448,6 @@ When ```compute=TRUE``` in ```control.predictor```, we can also obtain the outpu
 res$summary.fitted.values
 res$summary.linear.predictor
 ```
-as well as ```marginals.linear.predictor``` and ```marginals.fitted.values```.
-
-From <https://becarioprecario.bitbucket.io/inla-gitbook/ch-INLA.html#model-fitting-strategies> 
-we can also see the differences using the different fitting strategies, set by the ```control.inla``` argument.
-
-We can change both the Gaussian approximation strategy for the posterior full conditional distributions, as well as the integration strategy used to integrate out the $\theta_{-k}$ parameters to get the marginal distribution for $\theta_k$. 
-
-The ```"grid"``` option is the most costly, compared to the central composite design (```"ccd"```). In the empirical bayes option (```"eb"```), the posterior mode is used as the integration point.
-
-```{r fitting strategies}
-approx_strategy <- c("gaussian", "simplified.laplace", "laplace")
-int_strategy <- c("ccd", "grid", "eb")
-models <- c("iid", "matern")
-fits <- matrix(nrow=length(approx_strategy)*length(int_strategy)*length(models), ncol=3)
-fits_marginals <- vector(mode="list", length=length(approx_strategy)*length(int_strategy)*length(models))
-index_f <- 0
-model_names <- c()
-for (m in models){
-  for(a in approx_strategy){
-    for (i in int_strategy){
-      index_f <- index_f + 1
-      if (m=="matern"){
-        formula_approx <- y ~ 0 + b0 + covtemp + covprec + f(s, model = spde)
-      }
-      else{
-        formula_approx <- y ~ 0 + b0 + covtemp + covprec + f(s, model = "iid")
-      }
-      print(paste(a, ", ", i, ", ", m))
-      model_names <- c(model_names, paste(a, ", ", i, ", ", m))
-      fit_approx <- inla(formula, family = "gaussian",
-         data = inla.stack.data(stk.full),
-         control.inla = list(strategy = a, int.strategy = i),
-         control.compute = list(cpo = TRUE, dic = TRUE, waic = TRUE),
-         control.predictor = list(compute = TRUE, A = inla.stack.A(stk.full)))
-      fits[index_f,] <- fit_approx$summary.fixed$mean
-      fits_marginals[[index_f]] <- fit_approx$marginals.fixed$b0
-  }
-  }
-}
-```
-Let's compare the means of the parameters
-```{r compare-fits}
-fits_df <- as.data.frame(fits)
-names(fits_df) <- c("b0", "covtemp", "covprec")
-fits_df$models <- model_names
-fits_df
-```
-Also compare the posteriors themselves
-```{r compare-marginals}
-# Combine dataframes
-df_list <- lapply(fits_marginals, function(m) {
-  data.frame(x = m[,1], y = m[,2]) 
-})
-new_df <- do.call(rbind, df_list) 
-# Add an ID column
-row_counts <- sapply(fits_marginals, nrow)
-ids <- factor(rep(1:length(fits_marginals), each = row_counts))
-new_df$id <- ids
-length(ids)
-
-new_df <- new_df[1:86,]
-ggplot(new_df, aes(x = x, y = y, colour = id)) + 
-  geom_line() 
-```
-Wow so with this data set there is not really much different between meshes or with estimation methods.
 
 Another useful feature is the set of functions that can be used to manipulate the marginal distributions. Might be useful to compute posterior quantities such as KL divergence: <https://becarioprecario.bitbucket.io/inla-gitbook/ch-INLA.html#sec:marginals>
 
@@ -399,29 +458,115 @@ inla.mmarginal(res$marginals.fixed$b0)
 # Should be the same?
 res$summary.fixed$mode[1]
 ```
-Next, let's write that model in INLABRU and check if the estimates are the same. Then, we also look at how to fit the LGCP in INLA/INLABRU. 
 
-Wne can use the same mesh and spde function as we used before. And also the same formula! (I think). But what is especially nice about INLABRU is that we don't have to set up the stack with the projection matrices. We just model the response variable as a function of the covariates in the dataset we set up earlier and the locations of the observations. In INLABRU, we can use the sf dataset object directly.
+Fit the model in ```inlabru``` now. I will be using the @cameletti-2013 model, also desribed in @blangiardo-2015, 
+but with temporally varying covariate.
 
-INLA 
-```{r inlabru-setup}
-formula <- Value ~ Intercept(1) + covtemp + covprec + f(geometry, model = spde)
-# Fit the model for inlabru
-fit <- bru(formula, data = air_sf_project, family = "gaussian")
+Let's understand these priors a bit more: pcmatern vs matern.
+```{r inlabru-temporal}
+mesh <-inla.mesh.2d(loc = coo, max.edge=c(200, 500), crs=st_crs(air_sf_project))
+spde <- inla.spde2.pcmatern(mesh = mesh, alpha = 2, constr = TRUE, prior.range = c(10, 0.01), prior.sigma = c(1, 0.01))
+
+air_sf_subset <- air_sf_project #%>% filter(Samplingpoint%in%distinct_stations)
+#air_sf_subset <- air_sf_project %>% filter(Samplingpoint%in%distinct_stations, date<=as.Date("2023-01-05"))
+air_sf_subset
+dim(air_sf_subset)
+air_sf_subset$date_index <- as.numeric(as.factor(air_sf_subset$date))
+fm_mesh_1d(sort(unique(air_sf_subset$date_index)))
+day_mapper <- bru_mapper(fm_mesh_1d(sort(unique(air_sf_subset$date_index))), indexed = TRUE)
+day_mapper$mesh
+#formula <- Value ~ Intercept(1) + 
+#  field(geometry, model = spde, group = date_index, control.group=list(model="ar1", order=1))
+formula <- Value ~ Intercept(1) + covtemp + covprec + no2_column_ugm3 + 
+  field(geometry, model = spde, group = date_index, control.group=list(model="ar1", order=1))
+fit <- bru(formula, data = air_sf_subset, family = "gaussian")#, options = list(control.inla=list(int.strategy = 'grid', strategy="gaussian")))
 # Summarize the results
 summary(fit)
 ```
-That gives nearly the same estimates as from ```INLA```. 
-```{r plot-field}
+
+```{r some-fake-data}
+# OK, let's create a fake date
+# January 24: Just creating the data from scratch sort of
+# Amazing. Right now I have 15 days of data, one day for each station. But 
+# I accidentally did the index wrong, so that it is 1:5 so each station has multiple observations for one 
+# day. In this case, the code works. So there is really something about that. 
+# Maybe try to add good priors to the code. But there was also a problem with that.
+# January 27th: Code is working when the pcmatern function is used above. 
+# However, not sure how to use the rho priors below. See <https://becarioprecario.bitbucket.io/spde-gitbook/ch-stapp.html>
+fake_date_index <- as.integer(as.factor(rep(1:15, nrow(air_sf_subset)/15)))
+fake_date_index
+fake_stations <- air_sf_subset$Samplingpoint
+fake_stations
+length(air_sf_subset$date_index)
+fake_geo <- st_geometry(air_sf_subset)
+fake_value <- air_sf_subset$Value
+
+fake_data <- data.frame(Value=fake_value, geometry=fake_geo, Samplingpoint=fake_stations, date_index=fake_date_index)
+fake_data
+dim(fake_data)
+class(fake_data)
+day_mapper <- bru_mapper(fm_mesh_1d(sort(unique(fake_data$date))), indexed = TRUE)
+# The field is the realization of the spatio-temporal latent process.
+#What's this prior do?
+rho1p <- list(rho = list(prior = 'pc.cor1', param = c(0, 0.9))) 
+formula <- Value ~ Intercept(1) +
+  field(geometry, model = spde, group = date_index, control.group=list(model="ar1", order=1, hyper=rho1p))
+  #field(geometry, model = spde, group = date_index, group_mapper = day_mapper, control.group=list(model="ar1", order=1))
+# Fit the model for inlabru
+precprior <- list(prec = list(prior = 'pc.prec', param = c(0.2, 0.5)))
+fit <- bru(formula, data = fake_data, family = "gaussian", options = list(
+  control.inla=list(int.strategy = 'grid', strategy="gaussian"), 
+  control.family=list(list(hyper=precprior))))
+# Summarize the results
+summary(fit)
+```
+TODO: Does the latent process change over time?
+Just seeing how the temporal model actually looks, or how it is supposed to look even. Might be useful to just fit 
+a temporal only one.
+
+Inspect the marginals
+```{r posterior-marginals}
+fit$summary.hyperpar
+mesh$n
+
+# This should be the number of marginals
+mesh$n * length(unique(air_sf_subset$date))
+length(fit$marginals.random[[1]])
+mean(fit$marginals.random[[1]]$index.1)
+mean(fit$marginals.random[[1]]$index.299)
+rho_post <- fit$marginals.hyperpar$`GroupRho for field`
+plot(rho_post, type = "l", xlab = "Rho", ylab = "Density")
+inla_obj <- bru_info(fit)
+inla_obj$model
+plot(inla.smarginal(fit$marginals.random$field$index.1),type="l")
+plot(fit$marginals.random$field$index.1, type = "l") 
+plot(fit, "field", type="l")
+```
+
+TODO: If we want to do future predictions, need future satellite data. The below code 
+work without using the covariates. But need to properly set it up with the satellite data.
+```{r spatiotemporal-pred}
 map_prj <- st_transform(map, crs = projMercator)
-predictions1 <- predict(fit, newdata=dp, formula = ~ Intercept + covtemp + covprec + f)
-predictions2 <- predict(fit, newdata=dp, formula = ~ f)
+
+#Generate lattice points. Generates lattice evenly over region.
+lattice_over_mesh <- fm_pixels(mesh, mask=map_prj, dims=c(20,20), format = "sf")
 ggplot() +
-geom_sf(data=predictions1, aes(color=mean)) +
-  scale_colour_gradient(low = "blue", high = "yellow")
-# Check the contribution of just the spatial field
+geom_sf(data=as(lattice_over_mesh, "sf"))
+# Predict ten days ahead from the last day in the data. But also include some of the "already seen" days.
+day_lattice <- fm_cprod(lattice_over_mesh, data.frame(date_index = seq(max(air_sf_subset$date_index) + 1, by=1, length.out=4)))
+#day_lattice <- fm_cprod(lattice_over_mesh, data.frame(daily_concentration=rep(NA, 14), day_index = seq(max(daily_air$day_index) - 3, by=1, length.out=14)))
+day_lattice
+
+#predictions <- predict(fit, day_lattice, formula= ~ Intercept + field)
+# TODO: Not sure if this is working right or not. Predict times are all the same.
+predictions <- predict(fit, day_lattice, formula = ~ Intercept)
+predictions <- predict(fit, day_lattice, formula = ~ Intercept + field_eval(geometry, group=date_index))
+#predictions1 <- predict(fit, newdata=dp, formula = ~ Intercept + covtemp + covprec + no2_column_ugm3 + f)
+#predictions2 <- predict(fit, newdata=dp, formula = ~ f)
+
 ggplot() +
-geom_sf(data=predictions2, aes(color=mean)) +
-  scale_colour_gradient(low = "blue", high = "yellow")
+geom_sf(data=predictions, aes(color=mean)) +
+  facet_wrap(~date_index) +
+  scale_colour_gradient(low = "blue", high = "yellow") 
 ```
 That concludes this section, showing how to fit spatial model in ```INLA``` and ```inlabru```. There are a few things more to do: simulating data and seeing how well INLA recovers the parameters, and fitting a temporal model in both packages. But I'll leave these for later.
