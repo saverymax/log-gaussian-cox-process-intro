@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>1&nbsp; Introduction – Log Gaussian Cox Processes and INLA: Theory and Application</title>
+<title>References – Log Gaussian Cox Processes and INLA: Theory and Application</title>
 <style>
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
@@ -20,7 +20,26 @@ ul.task-list li input[type="checkbox"] {
   margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
   vertical-align: middle;
 }
-</style>
+/* CSS for citations */
+div.csl-bib-body { }
+div.csl-entry {
+  clear: both;
+}
+.hanging-indent div.csl-entry {
+  margin-left:2em;
+  text-indent:-2em;
+}
+div.csl-left-margin {
+  min-width:2em;
+  float:left;
+}
+div.csl-right-inline {
+  margin-left:2em;
+  padding-left:1em;
+}
+div.csl-indent {
+  margin-left: 2em;
+}</style>
 
 
 <script src="site_libs/quarto-nav/quarto-nav.js"></script>
@@ -30,8 +49,7 @@ ul.task-list li input[type="checkbox"] {
 <script src="site_libs/quarto-search/fuse.min.js"></script>
 <script src="site_libs/quarto-search/quarto-search.js"></script>
 <meta name="quarto:offset" content="./">
-<link href="./theory.html" rel="next">
-<link href="./index.html" rel="prev">
+<link href="./inla_inlabru_lgcp_tutorial_netherlands_data.html" rel="prev">
 <script src="site_libs/quarto-html/quarto.js"></script>
 <script src="site_libs/quarto-html/popper.min.js"></script>
 <script src="site_libs/quarto-html/tippy.umd.min.js"></script>
@@ -81,7 +99,7 @@ ul.task-list li input[type="checkbox"] {
       <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
         <i class="bi bi-layout-text-sidebar-reverse"></i>
       </button>
-        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./intro.html"><span class="chapter-number">1</span>&nbsp; <span class="chapter-title">Introduction</span></a></li></ol></nav>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./references.html">References</a></li></ol></nav>
         <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
         </a>
       <button type="button" class="btn quarto-search-button" aria-label="Search" onclick="window.quartoOpenSearch();">
@@ -114,7 +132,7 @@ ul.task-list li input[type="checkbox"] {
 </li>
         <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="./intro.html" class="sidebar-item-text sidebar-link active">
+  <a href="./intro.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text"><span class="chapter-number">1</span>&nbsp; <span class="chapter-title">Introduction</span></span></a>
   </div>
 </li>
@@ -138,7 +156,7 @@ ul.task-list li input[type="checkbox"] {
 </li>
         <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="./references.html" class="sidebar-item-text sidebar-link">
+  <a href="./references.html" class="sidebar-item-text sidebar-link active">
  <span class="menu-text">References</span></a>
   </div>
 </li>
@@ -155,7 +173,7 @@ ul.task-list li input[type="checkbox"] {
 
 <header id="title-block-header" class="quarto-title-block default">
 <div class="quarto-title">
-<h1 class="title"><span class="chapter-number">1</span>&nbsp; <span class="chapter-title">Introduction</span></h1>
+<h1 class="title">References</h1>
 </div>
 
 
@@ -172,10 +190,28 @@ ul.task-list li input[type="checkbox"] {
 </header>
 
 
-<p>This is a blog post about Log-Gaussian Cox Processes (LGCP). It is a follow up to the earlier blog post I made about Poisson Point Process models. In fact, the LGCP is an extension of the Poisson Point Process, in that a latent correlation structure is included in the point process model. Specifically, the LGCP uses a Gaussian Random Field to characterize the intensity of the point process. Doing so allows us to take into account spatial or temporal correlation across our region or period of interest. Statistically, this is quite advantageous compared to the Poisson Point Process where spatial correlation could only be accounted for via covariates. However, the inclusion of the random field presents mathematical and computational challenges. We will address these challenges here, making use of the Integrated Nested Laplace Approximation (INLA) approach to posterior approximation.</p>
-<p>The general structure of this post is as follows: I will first introduce the LGCP, but only briefly, as most of the theory is the same as the Poisson Process. Then, I’ll spend some time covering the INLA method and the accompanying R packages, <code>INLA</code> and <code>inlabru</code>. I’ll compare these packages for modelling point processes as well as continuous measures. At some point I will end the post and continue later with another about fitting multiple likelihood models in <code>inla</code>, such as for the purpose of accounting for preferential sampling or including multiple datasets.</p>
-<p>I am writing about this because having a model that incorporates spatial (and/or temporal) correlation is necessary to properly model both point processes (such as the Presence-Only data of the last blog) or continuous measures in spatiotemporal domains (such as air pollution). Not including correlation means that you then assume the covariates included in your model are sufficient to account for spatial fluctuations in the response variable. The problem with this is that is there no direct component in the model that relates the behavior of the process at one location to the behavior at another location. The Gaussian field in the LGCP does exactly this by taking into account the spatial dependence between measurement locations.</p>
-<p>Even though the only thing we want to do is include spatial dependence, this quickly becomes a more technical model than the Poisson process. We have to first learn a whole new method of approximation (INLA) and a new software framework to be able to efficiently implement the LGCP. However, the advantage is the INLA method/software is sufficiently general so that we can tackle a whole set of spatial-temporal modelling problems using the same approach. In fact, the INLA approach allows us to (easily???) work with any continuous, discrete, or point-type data that has latent Gaussian structure, and makes possible the combination of likelihoods of different datasets as long as the underlying processes share a set of parameters. Pretty useful stuff.</p>
+<div id="refs" class="references csl-bib-body hanging-indent" data-entry-spacing="0" role="list">
+<div id="ref-blangiardo2015book" class="csl-entry" role="listitem">
+Blangiardo, Marta, and Michela Cameletti. 2015. John Wiley &amp; Sons,
+Ltd. https://doi.org/<a href="https://doi.org/10.1002/9781118950203">https://doi.org/10.1002/9781118950203</a>.
+</div>
+<div id="ref-diggle_spatial_2013" class="csl-entry" role="listitem">
+Diggle, Peter J., Paula Moraga, Barry Rowlingson, and Benjamin M.
+Taylor. 2013. <span>“Spatial and
+<span>Spatio</span>-<span>Temporal</span>
+<span>Log</span>-<span>Gaussian</span> <span>Cox</span>
+<span>Processes</span>: <span>Extending</span> the
+<span>Geostatistical</span> <span>Paradigm</span>.”</span>
+<em>Statistical Science</em> 28 (4): 542–63. <a href="https://doi.org/10.1214/13-STS441">https://doi.org/10.1214/13-STS441</a>.
+</div>
+<div id="ref-rue2009" class="csl-entry" role="listitem">
+Rue, Håvard, Sara Martino, and Nicolas Chopin. 2009. <span>“Approximate
+<span>Bayesian</span> Inference for Latent <span>Gaussian</span> Models
+by Using Integrated Nested <span>Laplace</span> Approximations.”</span>
+<em>Journal of the Royal Statistical Society: Series B (Statistical
+Methodology)</em> 71 (2): 319–92. <a href="https://doi.org/10.1111/j.1467-9868.2008.00700.x">https://doi.org/10.1111/j.1467-9868.2008.00700.x</a>.
+</div>
+</div>
 
 
 
@@ -599,14 +635,11 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
 </script>
 <nav class="page-navigation">
   <div class="nav-page nav-page-previous">
-      <a href="./index.html" class="pagination-link" aria-label="Preface">
-        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text">Preface</span>
+      <a href="./inla_inlabru_lgcp_tutorial_netherlands_data.html" class="pagination-link" aria-label="Implementation of LGCP in INLA and INLABRU">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text"><span class="chapter-number">4</span>&nbsp; <span class="chapter-title">Implementation of LGCP in INLA and INLABRU</span></span>
       </a>          
   </div>
   <div class="nav-page nav-page-next">
-      <a href="./theory.html" class="pagination-link" aria-label="Theory">
-        <span class="nav-page-text"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">Theory</span></span> <i class="bi bi-arrow-right-short"></i>
-      </a>
   </div>
 </nav>
 </div> <!-- /content -->
