@@ -2,12 +2,12 @@
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
 
 <meta charset="utf-8">
-<meta name="generator" content="quarto-1.6.40">
+<meta name="generator" content="quarto-1.6.42">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>2&nbsp; LGCP theory – INLA and Log Gaussian Cox Processes: Theory and Application</title>
+<title>3&nbsp; LGCP theory – Log Gaussian Cox Processes and INLA: Theory and Application</title>
 <style>
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
@@ -37,10 +37,10 @@ ul.task-list li input[type="checkbox"] {
 <script src="site_libs/quarto-html/tippy.umd.min.js"></script>
 <script src="site_libs/quarto-html/anchor.min.js"></script>
 <link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
-<link href="site_libs/quarto-html/quarto-syntax-highlighting-549806ee2085284f45b00abea8c6df48.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-2f5df379a58b258e96c21c0638c20c03.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="site_libs/bootstrap/bootstrap-72c93205fb41c15e2e398b4f9a505ee2.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="site_libs/bootstrap/bootstrap-a34d670291f06f286357e447776a572a.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "sidebar",
   "copy-button": false,
@@ -110,7 +110,7 @@ window.Quarto = {
       <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
         <i class="bi bi-layout-text-sidebar-reverse"></i>
       </button>
-        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./theory.html"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">LGCP theory</span></a></li></ol></nav>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./theory.html"><span class="chapter-number">3</span>&nbsp; <span class="chapter-title">LGCP theory</span></a></li></ol></nav>
         <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
         </a>
       <button type="button" class="btn quarto-search-button" aria-label="Search" onclick="window.quartoOpenSearch();">
@@ -125,7 +125,7 @@ window.Quarto = {
   <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation floating overflow-auto">
     <div class="pt-lg-2 mt-2 text-left sidebar-header">
     <div class="sidebar-title mb-0 py-0">
-      <a href="./">INLA and Log Gaussian Cox Processes: Theory and Application</a> 
+      <a href="./">Log Gaussian Cox Processes and INLA: Theory and Application</a> 
     </div>
       </div>
         <div class="mt-2 flex-shrink-0 align-items-center">
@@ -138,31 +138,31 @@ window.Quarto = {
         <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./index.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">Preface</span></a>
+ <span class="menu-text"><span class="chapter-number">1</span>&nbsp; <span class="chapter-title">index.html</span></span></a>
   </div>
 </li>
         <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./intro.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">1</span>&nbsp; <span class="chapter-title">Introduction</span></span></a>
+ <span class="menu-text"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">Introduction</span></span></a>
   </div>
 </li>
         <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./theory.html" class="sidebar-item-text sidebar-link active">
- <span class="menu-text"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">LGCP theory</span></span></a>
+ <span class="menu-text"><span class="chapter-number">3</span>&nbsp; <span class="chapter-title">LGCP theory</span></span></a>
   </div>
 </li>
         <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./inla_inlabru_tutorial_netherlands_data.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">3</span>&nbsp; <span class="chapter-title">Spatial modelling with INLA and SPDE</span></span></a>
+ <span class="menu-text"><span class="chapter-number">4</span>&nbsp; <span class="chapter-title">Spatial modelling with INLA and SPDE</span></span></a>
   </div>
 </li>
         <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./inla_inlabru_lgcp_tutorial_netherlands_data.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">4</span>&nbsp; <span class="chapter-title">Implementation of LGCP in INLA and INLABRU</span></span></a>
+ <span class="menu-text"><span class="chapter-number">5</span>&nbsp; <span class="chapter-title">Implementation of LGCP in INLA and INLABRU</span></span></a>
   </div>
 </li>
     </ul>
@@ -175,11 +175,11 @@ window.Quarto = {
     <h2 id="toc-title">Table of contents</h2>
    
   <ul>
-  <li><a href="#inla" id="toc-inla" class="nav-link active" data-scroll-target="#inla"><span class="header-section-number">3</span> INLA</a>
+  <li><a href="#inla" id="toc-inla" class="nav-link active" data-scroll-target="#inla"><span class="header-section-number">4</span> INLA</a>
   <ul class="collapse">
-  <li><a href="#spde-connection" id="toc-spde-connection" class="nav-link" data-scroll-target="#spde-connection"><span class="header-section-number">3.1</span> SPDE connection</a></li>
-  <li><a href="#mesh" id="toc-mesh" class="nav-link" data-scroll-target="#mesh"><span class="header-section-number">3.2</span> Mesh</a></li>
-  <li><a href="#off-the-grid" id="toc-off-the-grid" class="nav-link" data-scroll-target="#off-the-grid"><span class="header-section-number">3.3</span> Off the grid</a></li>
+  <li><a href="#spde-connection" id="toc-spde-connection" class="nav-link" data-scroll-target="#spde-connection"><span class="header-section-number">4.1</span> SPDE connection</a></li>
+  <li><a href="#mesh" id="toc-mesh" class="nav-link" data-scroll-target="#mesh"><span class="header-section-number">4.2</span> Mesh</a></li>
+  <li><a href="#off-the-grid" id="toc-off-the-grid" class="nav-link" data-scroll-target="#off-the-grid"><span class="header-section-number">4.3</span> Off the grid</a></li>
   </ul></li>
   </ul>
 </nav>
@@ -189,7 +189,7 @@ window.Quarto = {
 
 <header id="title-block-header" class="quarto-title-block default">
 <div class="quarto-title">
-<h1 class="title"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">LGCP theory</span></h1>
+<h1 class="title"><span class="chapter-number">3</span>&nbsp; <span class="chapter-title">LGCP theory</span></h1>
 </div>
 
 
@@ -216,8 +216,8 @@ window.Quarto = {
 \lambda(s) = \exp[\alpha + \beta'x(s) + f_s(s)]
 \]</span> We denote the spatial effect as <span class="math inline">\(f_s(s)\)</span> in order to distinguish from temporal contributions. The Gaussian Random field <span class="math inline">\(f(s)\)</span> can be thought of as a continuous spatial effect that is evaluated at certain locations.</p>
 <p>That is all I will say about LGCPs. The main thing is that, once we incorporate the latent structure, we are forced to use a covariance structure that grows in size as the area of interest or the number of observations increase in size. Furthermore, we are still stuck with the problem of an intractable integral in the likelihood of the model. Thus, the computational complexity makes this approach prohibitively costly when using MCMC approaches to estimate any slightly non-trivial specifications of this model.</p>
-<section id="inla" class="level1" data-number="3">
-<h1 data-number="3"><span class="header-section-number">3</span> INLA</h1>
+<section id="inla" class="level1" data-number="4">
+<h1 data-number="4"><span class="header-section-number">4</span> INLA</h1>
 <p>Integrated Nested Laplace Approximations have been proposed by <span class="citation" data-cites="rue-2009">(<a href="#ref-rue-2009" role="doc-biblioref"><strong>rue-2009?</strong></a>)</span> as a fast way to estimate models with latent Gaussian structure. As it can be seen above, the LGCP is certainly an instance of models of this class. Taking notation directly from the Rue paper, INLA is concerned with models with an additive predictor that have the general form <span class="math display">\[
 \eta_i = \alpha + \sum^{n_f}_{j=1}f^{(j)}(u_{ij}) + \sum^{n_{\beta}}_{k=1} \beta_kz_{ki} + \epsilon_i
 \]</span> where <span class="math inline">\(\alpha\)</span> is an intercept, <span class="math inline">\(f\)</span> are unknown functions of <span class="math inline">\(\mathbf{u}\)</span>, and <span class="math inline">\(\beta\)</span> are the typical fixed effects effect for covariates <span class="math inline">\(\mathbf{z}\)</span>. Additionally, <span class="math inline">\(\mathbf{x}\)</span> will refer to the vector of latent Gaussian variables (Gaussian by prior definition), and <span class="math inline">\(\theta\)</span> the vector of hyperparameters that we usually deal with in a Bayesian model that are not inherently Gaussian. In the book by Blangiardo and Cameletti published in 2015, hyperparameters and latent field are denoted by <span class="math inline">\(\psi\)</span> and <span class="math inline">\(\theta\)</span> respectively, which is clearer than using <span class="math inline">\(x\)</span> to describe the latent field, but here I’m sticking to the original notation.</p>
@@ -243,20 +243,20 @@ window.Quarto = {
 <p><span class="math display">\[
 \tilde{\pi}(x_i|y) \approx\sum\tilde{\pi}(x_i|\theta^{(i)},y)\tilde{\pi}(\theta^{(j)}|y)\Delta_j
 \]</span> for integration points <span class="math inline">\(\theta^{(i)}\)</span> which are found by the exploration of the posterior for <span class="math inline">\(\theta\)</span>. This is done in a few different ways, for example by creating a standardized <span class="math inline">\(Z\)</span> variable around the mode and inverse hessian of <span class="math inline">\(\log \tilde\pi}(\theta|y)\)</span>. There are quite a few more details to this part that I won’t discuss here, but may come up when up using the INLA software itself (choosing the integration scheme, for instance).</p>
-<section id="spde-connection" class="level2" data-number="3.1">
-<h2 data-number="3.1" class="anchored" data-anchor-id="spde-connection"><span class="header-section-number">3.1</span> SPDE connection</h2>
+<section id="spde-connection" class="level2" data-number="4.1">
+<h2 data-number="4.1" class="anchored" data-anchor-id="spde-connection"><span class="header-section-number">4.1</span> SPDE connection</h2>
 <p>The Stochastic Partial Differential Equation (SPDE) approach is an innovation from <span class="citation" data-cites="lindgren-2011">(<a href="#ref-lindgren-2011" role="doc-biblioref"><strong>lindgren-2011?</strong></a>)</span> on the INLA method. The approach allows the representation of a continuous Gaussian Field with a Gaussian Markov Random Field. The connection to the <span class="citation" data-cites="rue-2009">(<a href="#ref-rue-2009" role="doc-biblioref"><strong>rue-2009?</strong></a>)</span> paper is that <span class="citation" data-cites="lindgren-2011">(<a href="#ref-lindgren-2011" role="doc-biblioref"><strong>lindgren-2011?</strong></a>)</span> connected the GRMF models of INLA to specific (continuous) GFs. As spatial statisticians, we care about the continuous case more than approximations in discrete space, and SPDE connected the two.</p>
 <p>To be slightly more specific, it turns out a GF with Matern covariance is a solution to a specific SPDE. The solution to the SPDE is found via a set of basis functions defined on a triangulation of the spatial region. The resulting GRMF is an approximation to the SPDE. So this approach allows us to approximate the solution of the SPDE with a GRMF that corresponds to a specific GF with matern covariance.</p>
 </section>
-<section id="mesh" class="level2" data-number="3.2">
-<h2 data-number="3.2" class="anchored" data-anchor-id="mesh"><span class="header-section-number">3.2</span> Mesh</h2>
+<section id="mesh" class="level2" data-number="4.2">
+<h2 data-number="4.2" class="anchored" data-anchor-id="mesh"><span class="header-section-number">4.2</span> Mesh</h2>
 <p>The mesh is is used to project the discrete GRMF to the continuous GF using some spatial weights defined at the vertices of the mesh (did I say that right?). From the Moraga tutorial above, she says the continuous process is estimated using a weighted average of the process at the vertices of the discrete triangulation mesh.</p>
 <p>The projection matrix maps the GMRF from the observations to the triangulation nodes. The observation will be the weighted average using the weights and values from the triangulation and projection matrix. <span class="math display">\[
 S(x_i) \approx \sum^G_{g=1}A_{ig}S_g
 \]</span></p>
 </section>
-<section id="off-the-grid" class="level2" data-number="3.3">
-<h2 data-number="3.3" class="anchored" data-anchor-id="off-the-grid"><span class="header-section-number">3.3</span> Off the grid</h2>
+<section id="off-the-grid" class="level2" data-number="4.3">
+<h2 data-number="4.3" class="anchored" data-anchor-id="off-the-grid"><span class="header-section-number">4.3</span> Off the grid</h2>
 <p><span class="citation" data-cites="simpson-2016">(<a href="#ref-simpson-2016" role="doc-biblioref"><strong>simpson-2016?</strong></a>)</span> developed an approach for approximating the likelihood of the LGCP within the INLA framework, using a random field <span class="math display">\[
 Z(s) = \sum^n_{i=1}z_i\phi_i(s)
 \]</span> TODO: 1-10: Think about what simpson did. ## Concluding the section</p>
@@ -688,12 +688,12 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
 <nav class="page-navigation">
   <div class="nav-page nav-page-previous">
       <a href="./intro.html" class="pagination-link" aria-label="Introduction">
-        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text"><span class="chapter-number">1</span>&nbsp; <span class="chapter-title">Introduction</span></span>
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">Introduction</span></span>
       </a>          
   </div>
   <div class="nav-page nav-page-next">
       <a href="./inla_inlabru_tutorial_netherlands_data.html" class="pagination-link" aria-label="Spatial modelling with INLA and SPDE">
-        <span class="nav-page-text"><span class="chapter-number">3</span>&nbsp; <span class="chapter-title">Spatial modelling with INLA and SPDE</span></span> <i class="bi bi-arrow-right-short"></i>
+        <span class="nav-page-text"><span class="chapter-number">4</span>&nbsp; <span class="chapter-title">Spatial modelling with INLA and SPDE</span></span> <i class="bi bi-arrow-right-short"></i>
       </a>
   </div>
 </nav>
