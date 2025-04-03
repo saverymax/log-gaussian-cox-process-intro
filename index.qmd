@@ -1,3 +1,5 @@
 # Preface {.unnumbered}
 
-This is the next blog post regarding Log-Gaussian Cox Processes.
+Hello! 
+
+This is a blog post by Max Savery. Go see the next section to learn what it is about.

@@ -1,34 +1,42 @@
-# LGCP theory
+# Theory
 
-A Poisson point process is a stochastic set of random variables in 2D space. The LGCP extends the process by incorporating spatial and potentially temporal correlation into the model. @diggle_spatial_2013 is a good reference for these type of models. I'll give some details below, and then discuss the INLA approach for actually estimating the model. 
+## LGCP 
+
+A Poisson point process is a stochastic set of points indexed in a bounded n-dimensional space, where the number of points in the set is a Poisson distributed random variable. The LGCP extends the process by explicitly incorporating spatial or temporal correlation into the definition of the intensity of the process. @diggle_spatial_2013 is a good reference for these type of models. I'll give some details below, and then discuss the INLA approach for actually estimating the model. 
 
 The Poisson Point Process is characterized by an intensity that can be defined as the expected number of observations per unit area. For a given region $A$, the number of individuals occurring within the region will be Poisson distributed. The mean of the distribution can be defined by the integral of the intensity over the region:
 $$
 \Delta(A) = \int_A \lambda(s)ds
 $$
-Of course, the intensity is an unobservable and unknown process, and must be modelled as a function of covariates. The intensity takes the general parameterization as
+Sadly, the intensity is an unobservable and unknown process, and therefore must be modelled as a function of covariates. The intensity takes the general parameterization as
 $$
 \lambda(s) = \exp[\alpha + \beta'x(s)]
 $$
-In the previous blog I discussed incorporating sampling bias, but for simplicity I will leave that out now. Some version of this will come back when discussing preferential sampling. Another difference is that in the INLA +SPDE framework, we don't need to worry about the resolution of our covariates (as much) as we work directly with the location of the points on a triangulated lattice.
+In the previous blog I discussed incorporating sampling bias, but I will leave that out now. Some version of this will come back when discussing preferential sampling.
 
-Now, in the log Gaussian Cox Process we incorporate a Gaussian Random Field (also vaguely described as Gaussian spatial field, spatial random effects, or latent  spatial field. I'm not sure exactly when the difference in description leads to a distinctly different spatial model) to incorporate spatial correlation in the model of intensity.
+Now, in the LGCP we incorporate a Gaussian Random Field (also described as Gaussian spatial field, spatial random effect, or latent  spatial field. I'm not sure exactly when the difference in description leads to a distinctly different spatial model) to incorporate spatial correlation in the model of intensity.
 $$
 \lambda(s) = \exp[\alpha + \beta'x(s) + f_s(s)]
 $$
-We denote the spatial effect as $f_s(s)$ in order to distinguish from temporal contributions. The Gaussian Random field $f(s)$ can be thought of as a continuous spatial effect that is evaluated at certain locations. 
+The spatial effect is denoted as $f_s(s)$ in order to distinguish from temporal contributions. $f_s(s)$ can be thought of as a continuous spatial effect that is evaluated at certain locations. 
 
-That is all I will say about LGCPs. The main thing is that, once we incorporate the latent structure, we are forced to use a covariance structure that grows in size as the area of interest or the number of observations increase in size. Furthermore, we are still stuck with the problem of an intractable integral in the likelihood of the model. Thus, the computational complexity makes this approach prohibitively costly when using MCMC approaches to estimate any slightly non-trivial specifications of this model.
+The main thing is that, once we incorporate $f_s(s)$, we are forced to use a covariance structure that depends on the resolution of the grid or mesh that will be used to approximate the continuous spatial effect. Furthermore, we are still stuck with the problem of an intractable integral in the likelihood of the LGCP (as in the case of the Poisson process). Thus, the computational complexity makes this approach prohibitively costly when using MCMC approaches to estimate the model in any region of practical interest. Hence, other approximations to the posterior of the parameters in the LGCP is necessary.
 
-# INLA
+## INLA
 
-Integrated Nested Laplace Approximations have been proposed by @rue-2009 as a fast way to estimate models with latent Gaussian structure. As it can be seen above, the LGCP is certainly an instance of models of this class. Taking notation directly from the Rue paper, INLA is concerned with models with an additive predictor that have the general form 
+The Integrated Nested Laplace Approximation has been proposed by @rue2009 as a fast way to estimate models with latent Gaussian structure. The LGCP is certainly an instance of models of this class. In the following description of the model, I present it nearly identically to the original paper, and/or from other very well-done sources, including: 
+
+1.
+2. 
+3. 
+
+There is nothing new under the sun here. I'm just condensing some resources for my own reference. So, taking notation directly from the Rue paper, INLA is concerned with models with an additive predictor that have the general form 
 $$
 \eta_i = \alpha + \sum^{n_f}_{j=1}f^{(j)}(u_{ij}) + \sum^{n_{\beta}}_{k=1} \beta_kz_{ki} + \epsilon_i
 $$
-where $\alpha$ is an intercept, $f$ are unknown functions of $\mathbf{u}$, and $\beta$ are the typical fixed effects effect for covariates $\mathbf{z}$. Additionally, $\mathbf{x}$ will refer to the vector of latent Gaussian variables (Gaussian by prior definition), and $\theta$ the vector of hyperparameters that we usually deal with in a Bayesian model that are not inherently Gaussian. In the book by Blangiardo and Cameletti published in 2015, hyperparameters and latent field are denoted by $\psi$ and $\theta$ respectively, which is clearer than using $x$ to describe the latent field, but here I'm sticking to the original notation.
+where $\alpha$ is an intercept, $f$ are unknown functions of $\mathbf{u}$, $\beta$ are the typical fixed effects for covariates $\mathbf{z}$, and $\epsilon_i$ is the additional noise in the process. Additionally, $\mathbf{x}$ will refer to the vector of latent Gaussian variables (Gaussian by definition of the prior), and $\theta$ the vector of hyperparameters that we usually deal with in a Bayesian model. These need not be inherently Gaussian. In the book of @blangiardo2015book, hyperparameters and latent field are denoted by $\psi$ and $\theta$ respectively, which is clearer than using $x$ to describe the latent field, but here I'm sticking to the original notation.
 
-Again, still taking from the notation of the Rue paper, the joint posterior is written as
+Still taking from the notation of the Rue paper, the joint posterior is written as
 $$
 \begin{aligned}
 \pi(x,\theta|y)\propto\pi(\theta)\pi(x|\theta)\prod_{i\in I}\pi(y_i|x_i,\theta)\\

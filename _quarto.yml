@@ -12,7 +12,7 @@ book:
     - inla_inlabru_tutorial_netherlands_data.qmd
     - inla_inlabru_lgcp_tutorial_netherlands_data.qmd
     #- summary.qmd
-    #- references.qmd
+    - references.qmd
 
 bibliography: references.bib
 
