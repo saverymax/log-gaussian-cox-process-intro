@@ -1,6 +1,6 @@
 # LGCP theory
 
-A Poisson point process is a stochastic set of random variables in 2D space. The LGCP extends the process by incorporating spatial and potentially temporal correlation into the model. @diggle-2013 is a good reference for these type of models. I'll give some details below, and then discuss the INLA approach for actually estimating the model. 
+A Poisson point process is a stochastic set of random variables in 2D space. The LGCP extends the process by incorporating spatial and potentially temporal correlation into the model. @diggle_spatial_2013 is a good reference for these type of models. I'll give some details below, and then discuss the INLA approach for actually estimating the model. 
 
 The Poisson Point Process is characterized by an intensity that can be defined as the expected number of observations per unit area. For a given region $A$, the number of individuals occurring within the region will be Poisson distributed. The mean of the distribution can be defined by the integral of the intensity over the region:
 $$
