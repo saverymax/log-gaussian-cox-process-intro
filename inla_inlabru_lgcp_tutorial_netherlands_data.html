@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>5&nbsp; Implementation of LGCP in INLA and INLABRU – Log Gaussian Cox Processes and INLA: Theory and Application</title>
+<title>4&nbsp; Implementation of LGCP in INLA and INLABRU – Log Gaussian Cox Processes and INLA: Theory and Application</title>
 <style>
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
@@ -143,7 +143,7 @@ window.Quarto = {
       <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
         <i class="bi bi-layout-text-sidebar-reverse"></i>
       </button>
-        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./inla_inlabru_lgcp_tutorial_netherlands_data.html"><span class="chapter-number">5</span>&nbsp; <span class="chapter-title">Implementation of LGCP in INLA and INLABRU</span></a></li></ol></nav>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./inla_inlabru_lgcp_tutorial_netherlands_data.html"><span class="chapter-number">4</span>&nbsp; <span class="chapter-title">Implementation of LGCP in INLA and INLABRU</span></a></li></ol></nav>
         <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
         </a>
       <button type="button" class="btn quarto-search-button" aria-label="Search" onclick="window.quartoOpenSearch();">
@@ -171,31 +171,31 @@ window.Quarto = {
         <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./index.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">1</span>&nbsp; <span class="chapter-title">index.html</span></span></a>
+ <span class="menu-text">Preface</span></a>
   </div>
 </li>
         <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./intro.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">Introduction</span></span></a>
+ <span class="menu-text"><span class="chapter-number">1</span>&nbsp; <span class="chapter-title">Introduction</span></span></a>
   </div>
 </li>
         <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./theory.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">3</span>&nbsp; <span class="chapter-title">LGCP theory</span></span></a>
+ <span class="menu-text"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">LGCP theory</span></span></a>
   </div>
 </li>
         <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./inla_inlabru_tutorial_netherlands_data.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text"><span class="chapter-number">4</span>&nbsp; <span class="chapter-title">Spatial modelling with INLA and SPDE</span></span></a>
+ <span class="menu-text"><span class="chapter-number">3</span>&nbsp; <span class="chapter-title">Spatial modelling with INLA and SPDE</span></span></a>
   </div>
 </li>
         <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="./inla_inlabru_lgcp_tutorial_netherlands_data.html" class="sidebar-item-text sidebar-link active">
- <span class="menu-text"><span class="chapter-number">5</span>&nbsp; <span class="chapter-title">Implementation of LGCP in INLA and INLABRU</span></span></a>
+ <span class="menu-text"><span class="chapter-number">4</span>&nbsp; <span class="chapter-title">Implementation of LGCP in INLA and INLABRU</span></span></a>
   </div>
 </li>
     </ul>
@@ -208,7 +208,7 @@ window.Quarto = {
     <h2 id="toc-title">Table of contents</h2>
    
   <ul>
-  <li><a href="#lgcp-in-inla-introduction" id="toc-lgcp-in-inla-introduction" class="nav-link active" data-scroll-target="#lgcp-in-inla-introduction"><span class="header-section-number">5.1</span> LGCP in INLA introduction</a></li>
+  <li><a href="#lgcp-in-inla-introduction" id="toc-lgcp-in-inla-introduction" class="nav-link active" data-scroll-target="#lgcp-in-inla-introduction"><span class="header-section-number">4.1</span> LGCP in INLA introduction</a></li>
   </ul>
 </nav>
     </div>
@@ -217,7 +217,7 @@ window.Quarto = {
 
 <header id="title-block-header" class="quarto-title-block default">
 <div class="quarto-title">
-<h1 class="title"><span class="chapter-number">5</span>&nbsp; <span class="chapter-title">Implementation of LGCP in INLA and INLABRU</span></h1>
+<h1 class="title"><span class="chapter-number">4</span>&nbsp; <span class="chapter-title">Implementation of LGCP in INLA and INLABRU</span></h1>
 </div>
 
 
@@ -236,8 +236,8 @@ window.Quarto = {
 
 <p>Having completed an examination of Air Pollutoin modelling in INLA and INLABRU, it is time to move on to modelling the point process</p>
 <p>Using data from GBIF.org (10 January 2025) GBIF Occurrence Download https://doi.org/10.15468/dl.p5cy6n</p>
-<section id="lgcp-in-inla-introduction" class="level2" data-number="5.1">
-<h2 data-number="5.1" class="anchored" data-anchor-id="lgcp-in-inla-introduction"><span class="header-section-number">5.1</span> LGCP in INLA introduction</h2>
+<section id="lgcp-in-inla-introduction" class="level2" data-number="4.1">
+<h2 data-number="4.1" class="anchored" data-anchor-id="lgcp-in-inla-introduction"><span class="header-section-number">4.1</span> LGCP in INLA introduction</h2>
 <p>Following https://www.paulamoraga.com/book-spatial/point-process-modeling.html for the INLA intro.</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(INLA)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
@@ -1282,7 +1282,7 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
 <nav class="page-navigation">
   <div class="nav-page nav-page-previous">
       <a href="./inla_inlabru_tutorial_netherlands_data.html" class="pagination-link" aria-label="Spatial modelling with INLA and SPDE">
-        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text"><span class="chapter-number">4</span>&nbsp; <span class="chapter-title">Spatial modelling with INLA and SPDE</span></span>
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text"><span class="chapter-number">3</span>&nbsp; <span class="chapter-title">Spatial modelling with INLA and SPDE</span></span>
       </a>          
   </div>
   <div class="nav-page nav-page-next">
