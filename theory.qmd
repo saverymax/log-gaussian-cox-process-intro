@@ -34,23 +34,24 @@ There is nothing new under the sun here. I'm just condensing some resources for 
 $$
 \eta_i = \alpha + \sum^{n_f}_{j=1}f^{(j)}(u_{ij}) + \sum^{n_{\beta}}_{k=1} \beta_kz_{ki} + \epsilon_i
 $$
-where $\alpha$ is an intercept, $f$ are unknown functions of $\mathbf{u}$, $\beta$ are the typical fixed effects for covariates $\mathbf{z}$, and $\epsilon_i$ is the additional noise in the process. Additionally, $\mathbf{x}$ will refer to the vector of latent Gaussian variables (Gaussian by definition of the prior), and $\theta$ the vector of hyperparameters that we usually deal with in a Bayesian model. These need not be inherently Gaussian. In the book of @blangiardo2015book, hyperparameters and latent field are denoted by $\psi$ and $\theta$ respectively, which is clearer than using $x$ to describe the latent field, but here I'm sticking to the original notation.
+where $\alpha$ is an intercept, $f$ are unknown functions of $\mathbf{u}$, $\beta$ are the typical fixed effects for covariates $\mathbf{z}$, and $\epsilon_i$ is the additional noise in the process. Additionally, $\mathbf{x}$ will refer to the vector of latent Gaussian variables (Gaussian by definition of the prior), and $\mathbf{\theta}$ the vector of hyperparameters that we usually deal with in a Bayesian model. These need not be inherently Gaussian. In the book of @blangiardo2015book, hyperparameters and latent field are denoted by $\psi$ and $\theta$ respectively, which is clearer than using $\mathbf{x}$ to describe the latent field, but here I'm sticking to the original notation.
 
-Still taking from the notation of the Rue paper, the joint posterior is written as
+Still taking from the notation of the Rue paper, the joint posterior of hyperparameters and latent variables is written as
 $$
 \begin{aligned}
-\pi(x,\theta|y)\propto\pi(\theta)\pi(x|\theta)\prod_{i\in I}\pi(y_i|x_i,\theta)\\
-\propto\pi(\theta)|Q(\theta)|^{1/2}\exp\bigg[-\frac{1}{2}x^TQ(\theta)x+\sum_{i\in I}\log\{\pi(y_i|x_i,\theta)\}\bigg],
+\pi(\mathbf{x},\mathbf{\theta}|\mathbf{y})\propto\pi(\mathbf{\theta})\pi(\mathbf{x}|\mathbf{\theta})\prod_{i\in I}\pi(y_i|x_i,\mathbf{\theta})\\
+\propto\pi(\mathbf{\theta})|Q(\mathbf{\theta})|^{1/2}\exp\bigg[-\frac{1}{2}\mathbf{x}^TQ(\mathbf{\theta})\mathbf{x}+\sum_{i\in I}\log\{\pi(y_i|x_i,\mathbf{\theta})\}\bigg],
 \end{aligned}
 $$
+where $\pi(y_i|x_i,\mathbf{\theta})$ is the distribution of the response variable and $|Q(\mathbf{\theta})|^{1/2}\exp\bigg[-\frac{1}{2}\mathbf{x}^TQ(\mathbf{\theta})\mathbf{x}\bigg]$ is the Gaussian prior with a mean of 0 precision matrix $Q$ on the GRMF conditional on $\mathbf{\theta}$.
 
 The main point of INLA is to make the nested approximations of the posterior marginals of the hyperparameters and (even more importantly) the latent field. The posterior marginal of one component of the hyperparameters is
 $$
-\pi(\theta_j|y) = \int \pi(\theta|y)d\theta_{-j}.
+\pi(\theta_j|\mathbf{y}) = \int \pi(\mathbf{\theta}|\mathbf{y})d\mathbf{\theta}_{-j}.
 $$
 Notice the $-j$ components are integrated out. The posterior marginal of a component of the latent field is
 $$
-\pi(x_i|y) = \int \pi(x_i|\theta,y)\pi(\theta|y)d\theta,
+\pi(x_i|\mathbf{y}) = \int \pi(x_i|\mathbf{\theta},\mathbf{y})\pi(\mathbf{\theta}|\mathbf{y})d\mathbf{\theta},
 $$
 again, sticking to the $\mathbf{x}$ notation. 
 
