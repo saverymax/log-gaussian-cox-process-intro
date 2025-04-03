@@ -2,9 +2,9 @@ project:
   type: book
 
 book:
-  title: "INLA and Log Gaussian Cox Processes: Theory and Application"
+  title: "Log Gaussian Cox Processes and INLA: Theory and Application"
   author: "Max Savery"
-  date: "18/12/2024"
+  date: "03/04/2025"
   chapters:
     - index.qmd
     - intro.qmd
