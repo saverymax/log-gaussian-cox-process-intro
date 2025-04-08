@@ -2,7 +2,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
 
 <meta charset="utf-8">
-<meta name="generator" content="quarto-1.6.42">
+<meta name="generator" content="quarto-1.6.43">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
@@ -57,7 +57,7 @@ div.csl-indent {
 <script src="site_libs/quarto-html/tippy.umd.min.js"></script>
 <script src="site_libs/quarto-html/anchor.min.js"></script>
 <link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
-<link href="site_libs/quarto-html/quarto-syntax-highlighting-2f5df379a58b258e96c21c0638c20c03.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-d4d76bf8491c20bad77d141916dc28e1.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
 <link href="site_libs/bootstrap/bootstrap-a34d670291f06f286357e447776a572a.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
@@ -252,9 +252,9 @@ window.Quarto = {
 <li></li>
 <li></li>
 </ol>
-<p>There is nothing new under the sun here. I’m just condensing some resources for my own reference. So, taking notation directly from the Rue paper, INLA is concerned with models with an additive predictor that have the general form <span class="math display">\[
+<p>There is nothing new under the sun here. I’m just condensing some resources for my own reference. So, taking notation directly from the Rue paper, INLA is concerned with models with an additive predictor that takes the general form <span class="math display">\[
 \eta_i = \alpha + \sum^{n_f}_{j=1}f^{(j)}(u_{ij}) + \sum^{n_{\beta}}_{k=1} \beta_kz_{ki} + \epsilon_i
-\]</span> where <span class="math inline">\(\alpha\)</span> is an intercept, <span class="math inline">\(f\)</span> are unknown functions of <span class="math inline">\(\mathbf{u}\)</span>, <span class="math inline">\(\beta\)</span> are the typical fixed effects for covariates <span class="math inline">\(\mathbf{z}\)</span>, and <span class="math inline">\(\epsilon_i\)</span> is the additional noise in the process. Additionally, <span class="math inline">\(\mathbf{x}\)</span> will refer to the vector of latent Gaussian variables (Gaussian by definition of the prior), and <span class="math inline">\(\mathbf{\theta}\)</span> the vector of hyperparameters that we usually deal with in a Bayesian model. These need not be inherently Gaussian. In the book of <span class="citation" data-cites="blangiardo2015book">Blangiardo and Cameletti (<a href="references.html#ref-blangiardo2015book" role="doc-biblioref">2015</a>)</span>, hyperparameters and latent field are denoted by <span class="math inline">\(\psi\)</span> and <span class="math inline">\(\theta\)</span> respectively, which is clearer than using <span class="math inline">\(\mathbf{x}\)</span> to describe the latent field, but here I’m sticking to the original notation.</p>
+\]</span> where <span class="math inline">\(\alpha\)</span> is an intercept, <span class="math inline">\(f\)</span> are unknown functions of <span class="math inline">\(\mathbf{u}\)</span>, <span class="math inline">\(\beta\)</span> are the typical fixed effects for covariates <span class="math inline">\(\mathbf{z}\)</span>, and <span class="math inline">\(\epsilon_i\)</span> is the additional noise in the process. Additionally, <span class="math inline">\(\mathbf{x}\)</span> will refer to the vector of latent Gaussian variables (Gaussian by definition of the prior), and <span class="math inline">\(\bm{\theta}\)</span> the vector of hyperparameters that we usually deal with in a Bayesian model. These need not be inherently Gaussian. In the book of <span class="citation" data-cites="blangiardo2015book">Blangiardo and Cameletti (<a href="references.html#ref-blangiardo2015book" role="doc-biblioref">2015</a>)</span>, hyperparameters and latent field are denoted by <span class="math inline">\(\psi\)</span> and <span class="math inline">\(\theta\)</span> respectively, which is clearer than using <span class="math inline">\(\mathbf{x}\)</span> to describe the latent field, but here I’m sticking to the original notation.</p>
 <p>Still taking from the notation of the Rue paper, the joint posterior of hyperparameters and latent variables is written as <span class="math display">\[
 \begin{aligned}
 \pi(\mathbf{x},\mathbf{\theta}|\mathbf{y})\propto\pi(\mathbf{\theta})\pi(\mathbf{x}|\mathbf{\theta})\prod_{i\in I}\pi(y_i|x_i,\mathbf{\theta})\\
