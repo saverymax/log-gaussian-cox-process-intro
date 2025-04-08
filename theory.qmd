@@ -30,11 +30,11 @@ The Integrated Nested Laplace Approximation has been proposed by @rue2009 as a f
 2. 
 3. 
 
-There is nothing new under the sun here. I'm just condensing some resources for my own reference. So, taking notation directly from the Rue paper, INLA is concerned with models with an additive predictor that have the general form 
+There is nothing new under the sun here. I'm just condensing some resources for my own reference. So, taking notation directly from the Rue paper, INLA is concerned with models with an additive predictor that takes the general form 
 $$
 \eta_i = \alpha + \sum^{n_f}_{j=1}f^{(j)}(u_{ij}) + \sum^{n_{\beta}}_{k=1} \beta_kz_{ki} + \epsilon_i
 $$
-where $\alpha$ is an intercept, $f$ are unknown functions of $\mathbf{u}$, $\beta$ are the typical fixed effects for covariates $\mathbf{z}$, and $\epsilon_i$ is the additional noise in the process. Additionally, $\mathbf{x}$ will refer to the vector of latent Gaussian variables (Gaussian by definition of the prior), and $\mathbf{\theta}$ the vector of hyperparameters that we usually deal with in a Bayesian model. These need not be inherently Gaussian. In the book of @blangiardo2015book, hyperparameters and latent field are denoted by $\psi$ and $\theta$ respectively, which is clearer than using $\mathbf{x}$ to describe the latent field, but here I'm sticking to the original notation.
+where $\alpha$ is an intercept, $f$ are unknown functions of $\mathbf{u}$, $\beta$ are the typical fixed effects for covariates $\mathbf{z}$, and $\epsilon_i$ is the additional noise in the process. Additionally, $\mathbf{x}$ will refer to the vector of latent Gaussian variables (Gaussian by definition of the prior), and $\bm{\theta}$ the vector of hyperparameters that we usually deal with in a Bayesian model. These need not be inherently Gaussian. In the book of @blangiardo2015book, hyperparameters and latent field are denoted by $\psi$ and $\theta$ respectively, which is clearer than using $\mathbf{x}$ to describe the latent field, but here I'm sticking to the original notation.
 
 Still taking from the notation of the Rue paper, the joint posterior of hyperparameters and latent variables is written as
 $$
