@@ -3,16 +3,14 @@
 
 Having covered the need-to-know material for INLA and SPDE, next I'm going to build a spatial model using both ```INLA``` and ```inlabru```. Comparing the two packages is useful because, though they can be expected to give the same results in most cases, the implementation is a bit different. Knowing when using the more complicated ```INLA``` can be justified is a useful exercise, I think. 
 
-I found <https://becarioprecario.bitbucket.io/spde-gitbook/ch-lcox.html> and <https://becarioprecario.bitbucket.io/inla-gitbook/ch-INLA.html> good for details about inla and such specifications. However, this initial tutorial follows that of the book of Paula Moraga <https://www.paulamoraga.com/book-spatial/sec-geostatisticaldataSPDE.html>, because I found her writing a bit more concise and clear. 
-
 The model fit here is a simple geostatistical one:
 $$
 Y_i \sim N(u_i, \sigma^2)\\
 u_i = \beta_0\cdot\text{temp} + \beta_1\cdot\text{precipitation}_i + S(x_i).
 $$
-So it's a typical Gaussian distributed variable with underlying latent structure. I'm not sure what the most accurate statistical way to say this is; potentially a spatial random effect "modelled as a Gaussian process". This is what Paula Moraga calls "geostatistical data", that is, measurements taken at discrete locations but used to describe or estimate a spatially continuous process, such as air pollution. It is very similar to a mixed model with a random effect. In this case the random effect is Gaussian distributed and spatially indexed. 
+So it's a typical Gaussian distributed variable with underlying latent structure, or otherwise referred to as a random effect modelled as a Gaussian process that is spatially indexed. In either case, it represents measurements taken at discrete locations but used to describe or estimate a spatially continuous process, such as air pollution. 
 
-It's a simple model, so let's get straight to data downloading and processing. I download air pollution data in the Netherlands for the year of 2023 from <https://eeadmz1-downloads-webapp.azurewebsites.net/>.
+Let's get straight to data downloading and processing. I downloaded air pollution data in the Netherlands for the year of 2023 from <https://eeadmz1-downloads-webapp.azurewebsites.net/>.
 ```{r set-up}
 library(INLA)
 library(inlabru)
@@ -59,7 +57,6 @@ Then examine the time series
 ```{r plot-time-series}
 distinct_stations <- unique(air_sf$Samplingpoint)[1:12]
 plotting_stations <- air_sf[air_sf$Samplingpoint%in%distinct_stations,]
-plotting_stations
 plotting_stations %>% 
   ggplot(aes(x=Start, y=Value)) + 
     geom_line() + 
@@ -70,8 +67,6 @@ plotting_stations %>%
 
 ```{r time-select}
 air_sf <- air_sf %>% filter(Start==as.POSIXct("2023-01-01 16:00:00	"))
-dim(air_sf)
-air_sf
 ```
 
 Then let's load a map of the Netherlands. The border is from <https://service.pdok.nl/kadaster/bestuurlijkegrenzen/atom/bestuurlijke_grenzen.xml>.
@@ -83,7 +78,6 @@ map <- st_as_sf(map)
 map <- st_transform(map, crs = st_crs(air_sf))
 # raster grid covering map
 grid <- terra::rast(map, nrows = 100, ncols = 100)
-grid
 # coordinates of all cells
 xy <- terra::xyFromCell(grid, 1:ncell(grid))
 # transform points to a sf object
@@ -93,7 +87,6 @@ dp <- st_as_sf(as.data.frame(xy), coords = c("x", "y"),
 # indices points within the map
 indicespointswithin <- which(st_intersects(dp, map,
                                            sparse = FALSE))
-length(indicespointswithin)
 
 # points within the map
 dp <- st_filter(dp, map)
@@ -181,7 +174,6 @@ plot(mesh4)
 plot(mesh5)
 # Using mesh0
 mesh <-inla.mesh.2d(loc = coo, max.edge=c(200, 500), crs=st_crs(air_sf_project))
-mesh$n
 ```
 
 Next we construct the A matrix that "A that projects the GRF from the observations to the vertices of the triangulated mesh." (Moraga 2024). 
@@ -246,7 +238,7 @@ Notice that I am passing a few options to the ```inla``` call. Importantly, ```c
 ```control.predictor``` will compute the posterior marginals of the parameters.
 
 The options:
-```{r control-compute}
+```{r control-compute, eval=FALSE}
 inla.set.control.compute.default()
 ```
 Once the model is fit, we can inspect the fixed parameters and estimated latent field, as well as the hyperparameters for the latent field.
