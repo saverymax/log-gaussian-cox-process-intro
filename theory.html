@@ -246,11 +246,11 @@ window.Quarto = {
 </section>
 <section id="inla" class="level2" data-number="2.2">
 <h2 data-number="2.2" class="anchored" data-anchor-id="inla"><span class="header-section-number">2.2</span> INLA</h2>
-<p>The Integrated Nested Laplace Approximation has been proposed by <span class="citation" data-cites="rue2009">Rue, Martino, and Chopin (<a href="references.html#ref-rue2009" role="doc-biblioref">2009</a>)</span> as a fast way to estimate models with latent Gaussian structure. The LGCP is certainly an instance of models of this class. In the following description of the model, I present it nearly identically to the original paper, and/or from other very well-done sources, including:</p>
+<p>The Integrated Nested Laplace Approximation has been proposed by <span class="citation" data-cites="rue2009">Rue, Martino, and Chopin (<a href="references.html#ref-rue2009" role="doc-biblioref">2009</a>)</span> as a fast way to estimate models with latent Gaussian structure. The LGCP is certainly an instance of models of this class. In the following description of the model, I present it nearly identically to the original paper, and/or from other well-done sources, including:</p>
 <ol type="1">
-<li></li>
-<li></li>
-<li></li>
+<li><a href="https://becarioprecario.bitbucket.io/spde-gitbook/ch-lcox.html" class="uri">https://becarioprecario.bitbucket.io/spde-gitbook/ch-lcox.html</a></li>
+<li><a href="https://becarioprecario.bitbucket.io/inla-gitbook/ch-INLA.html" class="uri">https://becarioprecario.bitbucket.io/inla-gitbook/ch-INLA.html</a></li>
+<li>The above are good for details about INLA. However, the book of Paula Moraga <a href="https://www.paulamoraga.com/book-spatial/sec-geostatisticaldataSPDE.html" class="uri">https://www.paulamoraga.com/book-spatial/sec-geostatisticaldataSPDE.html</a> is concise and clear for an initial tutorial.</li>
 </ol>
 <p>There is nothing new under the sun here. I’m just condensing some resources for my own reference. So, taking notation directly from the Rue paper, INLA is concerned with models with an additive predictor that takes the general form <span class="math display">\[
 \eta_i = \alpha + \sum^{n_f}_{j=1}f^{(j)}(u_{ij}) + \sum^{n_{\beta}}_{k=1} \beta_kz_{ki} + \epsilon_i
@@ -279,19 +279,18 @@ window.Quarto = {
 </section>
 <section id="spde-connection" class="level2" data-number="2.3">
 <h2 data-number="2.3" class="anchored" data-anchor-id="spde-connection"><span class="header-section-number">2.3</span> SPDE connection</h2>
-<p>The Stochastic Partial Differential Equation (SPDE) approach is an innovation from <span class="citation" data-cites="lindgren-2011">(<a href="references.html#ref-lindgren-2011" role="doc-biblioref"><strong>lindgren-2011?</strong></a>)</span> on the INLA method. The approach allows the representation of a continuous Gaussian Field with a Gaussian Markov Random Field. The connection to the <span class="citation" data-cites="rue-2009">(<a href="references.html#ref-rue-2009" role="doc-biblioref"><strong>rue-2009?</strong></a>)</span> paper is that <span class="citation" data-cites="lindgren-2011">(<a href="references.html#ref-lindgren-2011" role="doc-biblioref"><strong>lindgren-2011?</strong></a>)</span> connected the GRMF models of INLA to specific (continuous) GFs. As spatial statisticians, we care about the continuous case more than approximations in discrete space, and SPDE connected the two.</p>
+<p>The Stochastic Partial Differential Equation (SPDE) approach is an innovation from <span class="citation" data-cites="lindgren2011">Lindgren, Rue, and Lindström (<a href="references.html#ref-lindgren2011" role="doc-biblioref">2011</a>)</span> on the INLA method. The approach allows the representation of a continuous Gaussian Field with a Gaussian Markov Random Field. The connection to the <span class="citation" data-cites="rue2009">Rue, Martino, and Chopin (<a href="references.html#ref-rue2009" role="doc-biblioref">2009</a>)</span> paper is that <span class="citation" data-cites="lindgren2011">Lindgren, Rue, and Lindström (<a href="references.html#ref-lindgren2011" role="doc-biblioref">2011</a>)</span> connected the GRMF models of INLA to specific (continuous) GFs. As spatial statisticians, we care about the continuous case more than approximations in discrete space, and SPDE connected the two.</p>
 <p>To be slightly more specific, it turns out a GF with Matern covariance is a solution to a specific SPDE. The solution to the SPDE is found via a set of basis functions defined on a triangulation of the spatial region. The resulting GRMF is an approximation to the SPDE. So this approach allows us to approximate the solution of the SPDE with a GRMF that corresponds to a specific GF with matern covariance.</p>
 </section>
 <section id="mesh" class="level2" data-number="2.4">
 <h2 data-number="2.4" class="anchored" data-anchor-id="mesh"><span class="header-section-number">2.4</span> Mesh</h2>
-<p>The mesh is is used to project the discrete GRMF to the continuous GF using some spatial weights defined at the vertices of the mesh (did I say that right?). From the Moraga tutorial above, she says the continuous process is estimated using a weighted average of the process at the vertices of the discrete triangulation mesh.</p>
-<p>The projection matrix maps the GMRF from the observations to the triangulation nodes. The observation will be the weighted average using the weights and values from the triangulation and projection matrix. <span class="math display">\[
+<p>The mesh is is used to project the discrete GRMF to the continuous GF using some spatial weights defined at the vertices of the mesh. The projection matrix maps the GMRF from the observations to the triangulation nodes. The observation will be the weighted average using the weights and values from the triangulation and projection matrix. <span class="math display">\[
 S(x_i) \approx \sum^G_{g=1}A_{ig}S_g
 \]</span></p>
 </section>
 <section id="off-the-grid" class="level2" data-number="2.5">
 <h2 data-number="2.5" class="anchored" data-anchor-id="off-the-grid"><span class="header-section-number">2.5</span> Off the grid</h2>
-<p><span class="citation" data-cites="simpson-2016">(<a href="references.html#ref-simpson-2016" role="doc-biblioref"><strong>simpson-2016?</strong></a>)</span> developed an approach for approximating the likelihood of the LGCP within the INLA framework, using a random field <span class="math display">\[
+<p><span class="citation" data-cites="simpson2016">Simpson et al. (<a href="references.html#ref-simpson2016" role="doc-biblioref">2016</a>)</span> developed an approach for approximating the likelihood of the LGCP within the INLA framework, using a random field <span class="math display">\[
 Z(s) = \sum^n_{i=1}z_i\phi_i(s)
 \]</span> TODO: 1-10: Think about what simpson did. ## Concluding the section</p>
 <p>That was a bit of a longer-than-intended dive into INLA. But INLA is definitely a more mathematically complicated method than other approximations, and I wanted to solidify the details for myself. It’s not always that way, sometimes it’s nice just to jump straight into the application, but with INLA it seemed prudent to pick over the details. Now, onto using the software with some of my own data and use-cases.</p>
@@ -305,8 +304,14 @@ Blangiardo, Marta, and Michela Cameletti. 2015. John Wiley &amp; Sons, Ltd. http
 <div id="ref-diggle_spatial_2013" class="csl-entry" role="listitem">
 Diggle, Peter J., Paula Moraga, Barry Rowlingson, and Benjamin M. Taylor. 2013. <span>“Spatial and <span>Spatio</span>-<span>Temporal</span> <span>Log</span>-<span>Gaussian</span> <span>Cox</span> <span>Processes</span>: <span>Extending</span> the <span>Geostatistical</span> <span>Paradigm</span>.”</span> <em>Statistical Science</em> 28 (4): 542–63. <a href="https://doi.org/10.1214/13-STS441">https://doi.org/10.1214/13-STS441</a>.
 </div>
+<div id="ref-lindgren2011" class="csl-entry" role="listitem">
+Lindgren, Finn, Håvard Rue, and Johan Lindström. 2011. <span>“An Explicit Link Between <span>Gaussian</span> Fields and <span>Gaussian Markov</span> Random Fields: The Stochastic Partial Differential Equation Approach.”</span> <em>Journal of the Royal Statistical Society: Series B (Statistical Methodology)</em> 73 (4): 423–98. <a href="https://doi.org/10.1111/j.1467-9868.2011.00777.x">https://doi.org/10.1111/j.1467-9868.2011.00777.x</a>.
+</div>
 <div id="ref-rue2009" class="csl-entry" role="listitem">
 Rue, Håvard, Sara Martino, and Nicolas Chopin. 2009. <span>“Approximate <span>Bayesian</span> Inference for Latent <span>Gaussian</span> Models by Using Integrated Nested <span>Laplace</span> Approximations.”</span> <em>Journal of the Royal Statistical Society: Series B (Statistical Methodology)</em> 71 (2): 319–92. <a href="https://doi.org/10.1111/j.1467-9868.2008.00700.x">https://doi.org/10.1111/j.1467-9868.2008.00700.x</a>.
+</div>
+<div id="ref-simpson2016" class="csl-entry" role="listitem">
+Simpson, D., J. B. Illian, F. Lindgren, S. H. Sørbye, and H. Rue. 2016. <span>“Going Off Grid: Computationally Efficient Inference for Log-<span>Gaussian Cox</span> Processes.”</span> <em>Biometrika</em> 103 (1): 49–70. <a href="https://doi.org/10.1093/biomet/asv064">https://doi.org/10.1093/biomet/asv064</a>.
 </div>
 </div>
 </section>
