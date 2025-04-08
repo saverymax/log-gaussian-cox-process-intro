@@ -19,6 +19,7 @@ bibliography: references.bib
 format:
   html:
     theme: cosmo
+    auto-stretch: false
 
 execute:
   freeze: true

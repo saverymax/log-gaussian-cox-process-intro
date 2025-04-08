@@ -4,7 +4,7 @@ This is a blog post about Log-Gaussian Cox Processes (LGCP), mainly. It is a fol
 
 The general structure of this post is as follows: I will first introduce the LGCP and accompanying theory, but only briefly, as most of the theory is the same as the Poisson Process. Then, I'll spend some time covering the INLA method--which involves much more theory--and the accompanying R packages ```INLA``` and ```inlabru```. I'll compare these packages for modelling point processes as well as for continuous measures. At some point I will end the post and continue later with another about fitting multiple likelihood models in ```INLA```, such as for the purpose of accounting for preferential sampling or including multiple datasets. Perhaps, at the end of this blog, you will be in a similar state as represented in the cartoon below. 
 
-![happy face](figures/wow-inla.jpg)
+![A very happy face](figures/wow-inla.jpg){width="50%"}
 
 I am writing about this because having a model that incorporates spatial (and/or temporal) correlation is necessary to properly model both point processes (such as the Presence-Only data of the last blog) or continuous measures in spatiotemporal domains (such as air pollution). Not including correlation means that you then assume the covariates included in your model are sufficient to account for spatial fluctuations in the response variable. The problem with this is that is there no direct component in the model that relates the behavior of the process at one location to the behavior at another location. The Gaussian field in the LGCP does exactly this by taking into account the spatial dependence between measurement locations. 
 

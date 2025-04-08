@@ -43,9 +43,9 @@ $$
 \propto\pi(\mathbf{\theta})|Q(\mathbf{\theta})|^{1/2}\exp\bigg[-\frac{1}{2}\mathbf{x}^TQ(\mathbf{\theta})\mathbf{x}+\sum_{i\in I}\log\{\pi(y_i|x_i,\mathbf{\theta})\}\bigg],
 \end{aligned}
 $$
-where $\pi(y_i|x_i,\mathbf{\theta})$ is the distribution of the response variable and $|Q(\mathbf{\theta})|^{1/2}\exp\bigg[-\frac{1}{2}\mathbf{x}^TQ(\mathbf{\theta})\mathbf{x}\bigg]$ is the Gaussian prior with a mean of 0 precision matrix $Q$ on the GRMF conditional on $\mathbf{\theta}$.
+where $\pi(y_i|x_i,\mathbf{\theta})$ is the distribution of the response variable and $|Q(\mathbf{\theta})|^{1/2}\exp\bigg[-\frac{1}{2}\mathbf{x}^TQ(\mathbf{\theta})\mathbf{x}\bigg]$ is the Gaussian prior with a mean of 0 and precision matrix $Q$ on the GRMF conditional on $\mathbf{\theta}$.
 
-The main point of INLA is to make the nested approximations of the posterior marginals of the hyperparameters and (even more importantly) the latent field. The posterior marginal of one component of the hyperparameters is
+The main point of INLA is to make approximations of the posterior marginals of the hyperparameters and (even more importantly) the latent field. The posterior marginal of one component of the hyperparameters is
 $$
 \pi(\theta_j|\mathbf{y}) = \int \pi(\mathbf{\theta}|\mathbf{y})d\mathbf{\theta}_{-j}.
 $$
@@ -55,13 +55,11 @@ $$
 $$
 again, sticking to the $\mathbf{x}$ notation. 
 
-Following the procedure of INLA, first $\pi(\theta|y)$ will need to be approximated, and then $\pi(x_i|\theta,y)$. The integration to approximate $\pi(x_i|y)$ will be done numerically. The approximations are done with the Laplace Approximation, or a Gaussian-type approximation. To approximate the first quantity $\pi(\theta|y)$, a Laplace approximation is used from Tierney and Kadane, 1986: 
+Following the procedure of INLA, first $\pi(\theta|y)$ will need to be approximated, and then $\pi(x_i|\theta,y)$. The integration over $\pi(x_i|y)$ will be done numerically, using points from \tilde{\pi}(\theta|y). The approximations themselves are done with the Laplace Approximation, or a Gaussian-type approximation. To approximate the first quantity, $\pi(\theta|y)$, a Laplace approximation is used from Tierney and Kadane, 1986: 
 $$
 \tilde{\pi}(\theta|y) \propto \frac{\pi(x,\theta,y)}{\tilde{\pi}_G(x|\theta,y)}\bigg|_{x=x^*(\theta)} = \frac{\pi(y|x,\theta)\pi(x|\theta)\pi(\theta)}{\tilde{\pi}_G(x|\theta,y)}\bigg|_{x=x^*(\theta)}.
 $$
-Interestingly, this approximation uses a NESTED approximation, $\tilde{\pi}_G(x|\theta,y)$. $\tilde{\pi}_G$ is the Gaussian approximation to the latent field, which works because we already know the latent field to be prior-ly distributed as Gaussian.
- 
-The contribution of this paper is to then approximate $\pi(x_i|, \theta, y)$ with a Laplace Approximation (LA), beyond just a simple Gaussian. The paper discusses 3 approximations to $\pi(x_i|\theta, y)$: the Gaussian, LA, and a simplified LA.
+As per the name, IN(ested)LA, this approximation uses a NESTED approximation, $\tilde{\pi}_G(x|\theta,y)$. $\tilde{\pi}_G$ is the Gaussian approximation to the latent field, which works because we already know the latent field to be prior-ly distributed as Gaussian. In fact, the contribution of this paper is to then to improve on the approximation of $\pi(x_i|, \theta, y)$ with another approximation, the Laplace Approximation (LA), beyond just a simple Gaussian. The paper discusses 3 approximations to $\pi(x_i|\theta, y)$: the Gaussian, LA, and a simplified LA.
 
 The LA approximation is written as
 $$
@@ -74,7 +72,7 @@ Once the approximations of $\tilde{\pi}(\theta|y)$ of $\tilde{\pi}(x_i|\theta,y)
 $$
 \tilde{\pi}(x_i|y) \approx\sum\tilde{\pi}(x_i|\theta^{(i)},y)\tilde{\pi}(\theta^{(j)}|y)\Delta_j
 $$
-for integration points $\theta^{(i)}$ which are found by the exploration of the posterior for $\theta$. This is done in a few different ways, for example by creating a standardized $Z$ variable around the mode and inverse hessian of $\log \tilde\pi}(\theta|y)$. There are quite a few more details to this part that I won't discuss here, but may come up when up using the INLA software itself (choosing the integration scheme, for instance).
+for integration points $\theta^{(i)}$ which are found by the exploration of the posterior for $\theta$. This is done in a few different ways, for example by creating a standardized $Z$ variable around the mode and inverse hessian of $\log \tilde{\pi}(\theta|y)$. There are quite a few more details to this part that I won't discuss here, but may come up when up using the INLA software itself (choosing the integration scheme, for instance).
 
 
 ## SPDE connection
