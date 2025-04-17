@@ -24,17 +24,18 @@ The main thing is that, once we incorporate $f_s(s)$, we are forced to use a cov
 
 ## INLA
 
-The Integrated Nested Laplace Approximation has been proposed by @rue2009 as a fast way to estimate models with latent Gaussian structure. The LGCP is certainly an instance of models of this class. In the following description of the model, I present it nearly identically to the original paper, and/or from other well-done sources, including: 
+The Integrated Nested Laplace Approximation has been proposed by @rue2009 as a fast way to estimate the posterior of models with latent Gaussian structure. The LGCP is certainly an instance of models of this class. In the following description of the model, I present it nearly identically to the original paper, and/or from other well-done sources, including: 
 
-1. <https://becarioprecario.bitbucket.io/spde-gitbook/ch-lcox.html>
-2. <https://becarioprecario.bitbucket.io/inla-gitbook/ch-INLA.html>
-3. The above are good for details about INLA. However, the book of Paula Moraga <https://www.paulamoraga.com/book-spatial/sec-geostatisticaldataSPDE.html> is concise and clear for an initial tutorial.   
+1. <https://becarioprecario.bitbucket.io/spde-gitbook> really has a lot of detail, specifically for the SPDE innovation to INLA. 
+2. <https://becarioprecario.bitbucket.io/inla-gitbook/ch-INLA.html> is also good for focusing just on INLA.
+3. The book of Paula Moraga <https://www.paulamoraga.com/book-spatial/sec-geostatisticaldataSPDE.html> is concise and clear for an initial tutorial, though not a detailed.
+4. This book is also a very good resource: Spatial and Spatio-temporal Bayesian Models with R-INLA. Blangiardo, Marta, and Michela Cameletti. 2015.
 
 There is nothing new under the sun here. I'm just condensing some resources for my own reference. So, taking notation directly from the Rue paper, INLA is concerned with models with an additive predictor that takes the general form 
 $$
 \eta_i = \alpha + \sum^{n_f}_{j=1}f^{(j)}(u_{ij}) + \sum^{n_{\beta}}_{k=1} \beta_kz_{ki} + \epsilon_i
 $$
-where $\alpha$ is an intercept, $f$ are unknown functions of $\mathbf{u}$, $\beta$ are the typical fixed effects for covariates $\mathbf{z}$, and $\epsilon_i$ is the additional noise in the process. Additionally, $\mathbf{x}$ will refer to the vector of latent Gaussian variables (Gaussian by definition of the prior), and $\bm{\theta}$ the vector of hyperparameters that we usually deal with in a Bayesian model. These need not be inherently Gaussian. In the book of @blangiardo2015book, hyperparameters and latent field are denoted by $\psi$ and $\theta$ respectively, which is clearer than using $\mathbf{x}$ to describe the latent field, but here I'm sticking to the original notation.
+where $\alpha$ is an intercept, $f$ are unknown functions of $\mathbf{u}$, $\beta$ are the typical fixed effects for covariates $\mathbf{z}$, and $\epsilon_i$ is the additional noise in the process. Additionally, $\mathbf{x}$ will refer to the vector of latent Gaussian variables (Gaussian by definition of the prior), and $\boldsymbol{\theta}$ the vector of hyperparameters that we usually deal with in a Bayesian model. These need not be inherently Gaussian. In the book of @blangiardo2015book, hyperparameters and latent field are denoted by $\psi$ and $\theta$ respectively, which is clearer than using $\mathbf{x}$ to describe the latent field, but here I'm sticking to the original notation.
 
 Still taking from the notation of the Rue paper, the joint posterior of hyperparameters and latent variables is written as
 $$
@@ -43,7 +44,7 @@ $$
 \propto\pi(\mathbf{\theta})|Q(\mathbf{\theta})|^{1/2}\exp\bigg[-\frac{1}{2}\mathbf{x}^TQ(\mathbf{\theta})\mathbf{x}+\sum_{i\in I}\log\{\pi(y_i|x_i,\mathbf{\theta})\}\bigg],
 \end{aligned}
 $$
-where $\pi(y_i|x_i,\mathbf{\theta})$ is the distribution of the response variable and $|Q(\mathbf{\theta})|^{1/2}\exp\bigg[-\frac{1}{2}\mathbf{x}^TQ(\mathbf{\theta})\mathbf{x}\bigg]$ is the Gaussian prior with a mean of 0 and precision matrix $Q$ on the GRMF conditional on $\mathbf{\theta}$.
+where $\pi(y_i|x_i,\mathbf{\theta})$ is the distribution of the response variable and $|Q(\mathbf{\theta})|^{1/2}\exp\bigg[-\frac{1}{2}\mathbf{x}^TQ(\mathbf{\theta})\mathbf{x}\bigg]$ is the Gaussian prior on the GRMF with a mean of 0 and precision matrix $Q$, conditional on $\mathbf{\theta}$.
 
 The main point of INLA is to make approximations of the posterior marginals of the hyperparameters and (even more importantly) the latent field. The posterior marginal of one component of the hyperparameters is
 $$
@@ -57,15 +58,15 @@ again, sticking to the $\mathbf{x}$ notation.
 
 Following the procedure of INLA, first $\pi(\theta|y)$ will need to be approximated, and then $\pi(x_i|\theta,y)$. The integration over $\pi(x_i|y)$ will be done numerically, using points from \tilde{\pi}(\theta|y). The approximations themselves are done with the Laplace Approximation, or a Gaussian-type approximation. To approximate the first quantity, $\pi(\theta|y)$, a Laplace approximation is used from Tierney and Kadane, 1986: 
 $$
-\tilde{\pi}(\theta|y) \propto \frac{\pi(x,\theta,y)}{\tilde{\pi}_G(x|\theta,y)}\bigg|_{x=x^*(\theta)} = \frac{\pi(y|x,\theta)\pi(x|\theta)\pi(\theta)}{\tilde{\pi}_G(x|\theta,y)}\bigg|_{x=x^*(\theta)}.
+\tilde{\pi}(\theta|y) \propto \frac{\pi(x,\theta,y)}{\tilde{\pi}_G(x|\theta,y)}\bigg|_{x=x^*(\theta)} = \frac{\pi(y|x,\theta)\pi(x|\theta)\pi(\theta)}{\tilde{\pi}_G(x|\theta,y)}\bigg|_{x=x^*(\theta)},
 $$
-As per the name, IN(ested)LA, this approximation uses a NESTED approximation, $\tilde{\pi}_G(x|\theta,y)$. $\tilde{\pi}_G$ is the Gaussian approximation to the latent field, which works because we already know the latent field to be prior-ly distributed as Gaussian. In fact, the contribution of this paper is to then to improve on the approximation of $\pi(x_i|, \theta, y)$ with another approximation, the Laplace Approximation (LA), beyond just a simple Gaussian. The paper discusses 3 approximations to $\pi(x_i|\theta, y)$: the Gaussian, LA, and a simplified LA.
+where $x=x^*(\theta)$ of is the mode of $\tilde{\pi}_G(x|\theta,y)$. As per the name, IN(ested)LA, this approximation uses a NESTED approximation, $\tilde{\pi}_G(x|\theta,y)$. $\tilde{\pi}_G$ is the Gaussian approximation to the latent field, which works because we already know the latent field to be prior-ly distributed as Gaussian. In fact, the contribution of this paper is to then to improve on the approximation of $\pi(x_i|, \theta, y)$ with another approximation, the Laplace Approximation (LA), beyond just a simple Gaussian. The paper discusses 3 approximations to $\pi(x_i|\theta, y)$: the Gaussian, LA, and a simplified LA.
 
 The LA approximation is written as
 $$
-\tilde{\pi}_{LA}(x_i|\theta,y) \propto \frac{\pi(x,\theta,y)}{\tilde{\pi}_{GG}(x_{-i}|x_i,\theta,y)}\bigg|_{x_{-i}=x^*_{-i}(x_i,\theta)}.
+\tilde{\pi}_{LA}(x_i|\theta,y) \propto \frac{\pi(x,\theta,y)}{\tilde{\pi}_{GG}(x_{-i}|x_i,\theta,y)}\bigg|_{x_{-i}=x^*_{-i}(x_i,\theta)},
 $$
-This can be computationally intensive since it is necessary to recompute $\tilde{\pi}_{GG}(x_{-i}|x_i,\theta,y)$ for each element of $x$ and $\theta$. Why?
+where $x^{*}_{-i}(x_i,\theta)$ is the mode of $\tilde{\pi}_{GG}(x_{-i}|x_i,\theta,y)$. This approximation can be computationally intensive since it is necessary to recompute $\tilde{\pi}_{GG}(x_{-i}|x_i,\theta,y)$ for each element of $x$ and $\theta$.
 
 Once the approximations of $\tilde{\pi}(\theta|y)$ of $\tilde{\pi}(x_i|\theta,y)$ are found, the marginals for each element $x_i$ can be approximated:
 
@@ -74,6 +75,8 @@ $$
 $$
 for integration points $\theta^{(i)}$ which are found by the exploration of the posterior for $\theta$. This is done in a few different ways, for example by creating a standardized $Z$ variable around the mode and inverse hessian of $\log \tilde{\pi}(\theta|y)$. There are quite a few more details to this part that I won't discuss here, but may come up when up using the INLA software itself (choosing the integration scheme, for instance).
 
+Again, from the math above it is not possible to fully understand the INLA approach, but it should enough of a technical description to understand the main ideas (approximate the hyperparameters and latent conditionals, then numerically integrate to approximate the marginals). 
+
 
 ## SPDE connection
 
@@ -81,23 +84,27 @@ The Stochastic Partial Differential Equation (SPDE) approach is an innovation fr
 
 To be slightly more specific, it turns out a GF with Matern covariance is a solution to a specific SPDE. The solution to the SPDE is found via a set of basis functions defined on a triangulation of the spatial region. The resulting GRMF is an approximation to the SPDE. So this approach allows us to approximate the solution of the SPDE with a GRMF that corresponds to a specific GF with matern covariance.
 
+### Mesh
 
-## Mesh
-
-The mesh is is used to project the discrete GRMF to the continuous GF using some spatial weights defined at the vertices of the mesh. The projection matrix maps the GMRF from the observations to the triangulation nodes. The observation will be the weighted average using the weights and values from the triangulation and projection matrix.
-$$ 
-S(x_i) \approx \sum^G_{g=1}A_{ig}S_g 
+In the SPDE approach a triangulated mesh (the finite element representation) is used to approximate the solution to the SPDE using spatial weights defined at the vertices of the mesh.
 $$
+x(u) = \sum^n_{k=1}\psi_k(u)w_k,
+$$
+where $w_k$ are Gaussian weights and $\psi_k$ are the piecewise linear basis functions, and $n$ is the number of vertices in the entire triangulation of the domain. This means that the weights represent the values of the field at each vertex, and the basis functions are used to interpolate the value of the observation in the interior of the triangle, where $\psi_k(u)=1$ only at vertex $k$ of the triangle containing $u$. A result of @lindgren2011 is to show that the weights follow a GRMF and to derive the precision matrix.
 
-## Off the grid
+The practical implication of this the SPDE approach is that you will need to define the mesh before modelling. The results will be sensitive to this choice, so it is important to explore the impact of the mesh on the model estimation. I'll show this a little once I get to the coding.
 
-@simpson2016 developed an approach for approximating the likelihood of the LGCP within the INLA framework, using a random field
+In INLA software, a projection matrix maps the GMRF from the observations to the triangulation nodes. The observation will be represented as the weighted average using the weights and values from the triangulation and projection matrix. For example, in the picture below, for observation $s$ the value Z$(s)$ is calculated as $Z(s)\approx \frac{T_1}{T}Z_1+\frac{T_2}{T}Z_2+\frac{T_3}{T}Z_3$. This is taken from <https://www.paulamoraga.com/book-spatial/sec-geostatisticaldataSPDE.html>
+![Weighted average](figures/moraga_image.png){width="50%"}
+
+### Off the grid
+
+@simpson2016 developed an approach for approximating the likelihood of the LGCP within the INLA and SPDE framework, using a finite-dimensional random field
 $$
 Z(s) = \sum^n_{i=1}z_i\phi_i(s)
 $$
-TODO: 1-10: Think about what simpson did.
-## Concluding the section
+where $z=(z_1...,z_n)^T$ is a multivariate Gaussian vector and $\{\phi_i(s)\}^n_{i=1}$ is a set of basis functions. Using the random field, they propose an approximation to the LGCP that does not rely on the discretization of the domain into a grid. Furthermore, they are able to leverage the triangulation of the SPDE approach to compute the LGCP likelihood when using their  random field approximation. The implication of this for our LGCP modelling is that the INLA framework can conveniently be used approximate the LGCP likelihood and posterior.
 
-That was a bit of a longer-than-intended dive into INLA. But INLA is definitely a more mathematically complicated method than other approximations, and I wanted to solidify the details for myself. It's not always that way, sometimes it's nice just to jump straight into the application, but with INLA it seemed prudent to pick over the details. Now, onto using the software with some of my own data and use-cases. 
+## In conclusion...
 
-Anyway, having covered, the necessary bits of INLA and LGCPs, I'll now proceed to discuss the modelling procedure using ```INLA``` and ```inlabru```. I'll compare the software, first for a continuous measurement and then for point data using an LGCP!
+That was a bit of a longer-than-intended dive into INLA. But INLA is a more mathematically complicated method than other approximations, and I wanted to solidify the details for myself. It's not always that way, sometimes it's nice just to jump straight into the application, but with INLA it seemed prudent to pick over the details. Now, onto using the software with some of my own data and use-cases. I'll now proceed to discuss the modelling procedure using ```INLA``` and ```inlabru```. I'll compare the software and details of the implementation, first for a continuous measurement and then for point data using an LGCP.
