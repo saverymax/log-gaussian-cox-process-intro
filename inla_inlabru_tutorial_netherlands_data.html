@@ -235,106 +235,32 @@ window.Quarto = {
 </header>
 
 
-<p>Having covered the need-to-know material for INLA and SPDE, next I’m going to build a spatial model using both <code>INLA</code> and <code>inlabru</code>. Comparing the two packages is useful because, though they can be expected to give the same results in most cases, the implementation is a bit different. Knowing when using the more complicated <code>INLA</code> can be justified is a useful exercise, I think.</p>
-<p>The model fit here is a simple geostatistical one: <span class="math display">\[
+<p>Having covered the need-to-know material for INLA and SPDE, next I’m going to build a spatial model using both <code>INLA</code> and <code>inlabru</code>. Comparing the two packages is useful because, though they can be expected to give the same results in most cases, the implementation is a bit different. Knowing when using the more complicated <code>INLA</code> can be justified is a useful exercise, I think. The template for this code follows the air pollution example from the geostatistical chapter in Paula Moraga’s Spatial Statistics book, <a href="https://www.paulamoraga.com/book-spatial/sec-geostatisticaldataSPDE.html" class="uri">https://www.paulamoraga.com/book-spatial/sec-geostatisticaldataSPDE.html</a>. The difference is that I will use air pollution data from the Netherlands, compare <code>INLA</code> and <code>inlabru</code>, and consider a few extra technical details.</p>
+<p>The model fit here is a simple geostatistical one. I’ll be using air pollution data in the Netherlands. The model can be written as <span class="math display">\[
 Y_i \sim N(u_i, \sigma^2)\\
 u_i = \beta_0\cdot\text{temp} + \beta_1\cdot\text{precipitation}_i + S(x_i).
-\]</span> So it’s a typical Gaussian distributed variable with underlying latent structure, or otherwise referred to as a random effect modelled as a Gaussian process that is spatially indexed. In either case, it represents measurements taken at discrete locations but used to describe or estimate a spatially continuous process, such as air pollution.</p>
-<p>Let’s get straight to data downloading and processing. I downloaded air pollution data in the Netherlands for the year of 2023 from <a href="https://eeadmz1-downloads-webapp.azurewebsites.net/" class="uri">https://eeadmz1-downloads-webapp.azurewebsites.net/</a>.</p>
+\]</span> So it’s a typical Gaussian distributed variable with underlying latent structure $S(x_i), otherwise referred to as a random effect modelled as a Gaussian process that is spatially indexed. In either case, it represents measurements taken at discrete locations but used to describe or estimate a spatially continuous process, such as air pollution.</p>
+<p>Let’s get straight to data downloading and processing. I downloaded air pollution data in the Belgium and Netherlands for the year of 2023 from <a href="https://eeadmz1-downloads-webapp.azurewebsites.net/" class="uri">https://eeadmz1-downloads-webapp.azurewebsites.net/</a>. For now I just focus on the Netherlands data.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(INLA)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-stderr">
-<pre><code>Loading required package: Matrix</code></pre>
+<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(INLA)</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(inlabru)</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(sf)</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(rnaturalearth)</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(ggplot2)</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(viridis)</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(terra)</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(arrow)</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(dplyr)</span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(stringr)</span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(readr)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
-<div class="cell-output cell-output-stderr">
-<pre><code>Loading required package: sp</code></pre>
-</div>
-<div class="cell-output cell-output-stderr">
-<pre><code>This is INLA_24.05.01-1 built 2024-05-01 18:49:50 UTC.
- - See www.r-inla.org/contact-us for how to get help.
- - List available models/likelihoods/etc with inla.list.models()
- - Use inla.doc(&lt;NAME&gt;) to access documentation</code></pre>
-</div>
-<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(inlabru)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-stderr">
-<pre><code>Loading required package: fmesher</code></pre>
-</div>
-<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(sf)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-stderr">
-<pre><code>Linking to GEOS 3.11.2, GDAL 3.8.2, PROJ 9.3.1; sf_use_s2() is TRUE</code></pre>
-</div>
-<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(rnaturalearth)</span>
-<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(ggplot2)</span>
-<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(viridis)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-stderr">
-<pre><code>Loading required package: viridisLite</code></pre>
-</div>
-<div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(terra)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-stderr">
-<pre><code>terra 1.7.78</code></pre>
-</div>
-<div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(arrow)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-stderr">
-<pre><code>
-Attaching package: 'arrow'</code></pre>
-</div>
-<div class="cell-output cell-output-stderr">
-<pre><code>The following object is masked from 'package:terra':
-
-    buffer</code></pre>
-</div>
-<div class="cell-output cell-output-stderr">
-<pre><code>The following object is masked from 'package:utils':
-
-    timestamp</code></pre>
-</div>
-<div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(dplyr)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-stderr">
-<pre><code>
-Attaching package: 'dplyr'</code></pre>
-</div>
-<div class="cell-output cell-output-stderr">
-<pre><code>The following objects are masked from 'package:terra':
-
-    intersect, union</code></pre>
-</div>
-<div class="cell-output cell-output-stderr">
-<pre><code>The following objects are masked from 'package:stats':
-
-    filter, lag</code></pre>
-</div>
-<div class="cell-output cell-output-stderr">
-<pre><code>The following objects are masked from 'package:base':
-
-    intersect, setdiff, setequal, union</code></pre>
-</div>
-<div class="sourceCode cell-code" id="cb22"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(stringr)</span>
-<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(readr)</span>
-<span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a><span class="co">#data_path &lt;- file.path("D:", "data", "air_quality_data", "belgium_eea", "E1a")</span></span>
-<span id="cb22-4"><a href="#cb22-4" aria-hidden="true" tabindex="-1"></a>data_path <span class="ot">&lt;-</span> <span class="fu">file.path</span>(<span class="st">"D:"</span>, <span class="st">"data"</span>, <span class="st">"air_quality_data"</span>, <span class="st">"netherlands_eea"</span>, <span class="st">"E1a"</span>)</span>
-<span id="cb22-5"><a href="#cb22-5" aria-hidden="true" tabindex="-1"></a>d <span class="ot">&lt;-</span> <span class="fu">open_dataset</span>(data_path)</span>
-<span id="cb22-6"><a href="#cb22-6" aria-hidden="true" tabindex="-1"></a>d</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-stdout">
-<pre><code>FileSystemDataset with 199 Parquet files
-12 columns
-Samplingpoint: string
-Pollutant: int32
-Start: timestamp[ns] not null
-End: timestamp[ns] not null
-Value: decimal128(38, 18)
-Unit: string
-AggType: string
-Validity: int32 not null
-Verification: int32 not null
-ResultTime: timestamp[ns] not null
-DataCapture: decimal128(38, 18)
-FkObservationLog: string</code></pre>
-</div>
-<div class="sourceCode cell-code" id="cb24"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 8 Nitrogen dioxide</span></span>
-<span id="cb24-2"><a href="#cb24-2" aria-hidden="true" tabindex="-1"></a><span class="co"># 5 Particulate matter &lt; 10 µm</span></span>
-<span id="cb24-3"><a href="#cb24-3" aria-hidden="true" tabindex="-1"></a><span class="co"># 6001  Particulate matter &lt; 2.5 µm</span></span>
-<span id="cb24-4"><a href="#cb24-4" aria-hidden="true" tabindex="-1"></a>d <span class="sc">%&gt;%</span> <span class="fu">group_by</span>(Samplingpoint) <span class="sc">|&gt;</span> <span class="fu">filter</span>(Pollutant<span class="sc">==</span><span class="dv">6001</span>, Value<span class="sc">&gt;-</span><span class="dv">1</span>) <span class="sc">|&gt;</span> <span class="fu">collect</span>() <span class="ot">-&gt;</span> df</span>
-<span id="cb24-5"><a href="#cb24-5" aria-hidden="true" tabindex="-1"></a>df</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p>In the dataset, 8 is the id for Nitrogen dioxide, 5 Particulate matter &lt; 10 µm, and 6001 for Particulate matter &lt; 2.5 µm. I focused on Particulate matter &lt; 2.5 µm, referred to as PM2.5.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co">#data_path &lt;- file.path("D:", "data", "air_quality_data", "belgium_eea", "E1a")</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>data_path <span class="ot">&lt;-</span> <span class="fu">file.path</span>(<span class="st">"D:"</span>, <span class="st">"data"</span>, <span class="st">"air_quality_data"</span>, <span class="st">"netherlands_eea"</span>, <span class="st">"E1a"</span>)</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>d <span class="ot">&lt;-</span> <span class="fu">open_dataset</span>(data_path)</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>d <span class="sc">%&gt;%</span> <span class="fu">group_by</span>(Samplingpoint) <span class="sc">|&gt;</span> <span class="fu">filter</span>(Pollutant<span class="sc">==</span><span class="dv">6001</span>, Value<span class="sc">&gt;-</span><span class="dv">1</span>) <span class="sc">|&gt;</span> <span class="fu">collect</span>() <span class="ot">-&gt;</span> df</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>df</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code># A tibble: 442,873 × 12
 # Groups:   Samplingpoint [53]
@@ -355,34 +281,14 @@ FkObservationLog: string</code></pre>
 #   ResultTime &lt;dttm&gt;, DataCapture &lt;dbl&gt;, FkObservationLog &lt;chr&gt;</code></pre>
 </div>
 </div>
-<p>Add locations to the sampling stations.</p>
+<p>Next add the the locations of the measuring stations to the dataset. The air pollution observations include an station identifier, but the coordinates of each of these stations is not included. It comes in a separate dataset.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb26"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a>df</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-stdout">
-<pre><code># A tibble: 442,873 × 12
-# Groups:   Samplingpoint [53]
-   Samplingpoint   Pollutant Start               End                 Value Unit 
-   &lt;chr&gt;               &lt;int&gt; &lt;dttm&gt;              &lt;dttm&gt;              &lt;dbl&gt; &lt;chr&gt;
- 1 NL/SPO-NL00007…      6001 2023-01-01 01:00:00 2023-01-01 02:00:00 131.  ug.m…
- 2 NL/SPO-NL00007…      6001 2023-01-01 02:00:00 2023-01-01 03:00:00  86.2 ug.m…
- 3 NL/SPO-NL00007…      6001 2023-01-01 03:00:00 2023-01-01 04:00:00  30.7 ug.m…
- 4 NL/SPO-NL00007…      6001 2023-01-01 04:00:00 2023-01-01 05:00:00  11   ug.m…
- 5 NL/SPO-NL00007…      6001 2023-01-01 05:00:00 2023-01-01 06:00:00   9.1 ug.m…
- 6 NL/SPO-NL00007…      6001 2023-01-01 06:00:00 2023-01-01 07:00:00   5.3 ug.m…
- 7 NL/SPO-NL00007…      6001 2023-01-01 07:00:00 2023-01-01 08:00:00   2.8 ug.m…
- 8 NL/SPO-NL00007…      6001 2023-01-01 08:00:00 2023-01-01 09:00:00   2.3 ug.m…
- 9 NL/SPO-NL00007…      6001 2023-01-01 10:00:00 2023-01-01 11:00:00  -0.6 ug.m…
-10 NL/SPO-NL00007…      6001 2023-01-01 11:00:00 2023-01-01 12:00:00   1.4 ug.m…
-# ℹ 442,863 more rows
-# ℹ 6 more variables: AggType &lt;chr&gt;, Validity &lt;int&gt;, Verification &lt;int&gt;,
-#   ResultTime &lt;dttm&gt;, DataCapture &lt;dbl&gt;, FkObservationLog &lt;chr&gt;</code></pre>
-</div>
-<div class="sourceCode cell-code" id="cb28"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a>df <span class="ot">&lt;-</span> df <span class="sc">%&gt;%</span></span>
-<span id="cb28-2"><a href="#cb28-2" aria-hidden="true" tabindex="-1"></a>   <span class="co">#mutate(Samplingpoint = str_remove(Samplingpoint, "BE/"))</span></span>
-<span id="cb28-3"><a href="#cb28-3" aria-hidden="true" tabindex="-1"></a>   <span class="fu">mutate</span>(<span class="at">Samplingpoint =</span> <span class="fu">str_remove</span>(Samplingpoint, <span class="st">"NL/"</span>))</span>
-<span id="cb28-4"><a href="#cb28-4" aria-hidden="true" tabindex="-1"></a><span class="co">#station_location_path &lt;- file.path("D:", "data", "air_quality_data", "eea_stations_2023", "belgium_stations_2023.csv")</span></span>
-<span id="cb28-5"><a href="#cb28-5" aria-hidden="true" tabindex="-1"></a>station_location_path <span class="ot">&lt;-</span> <span class="fu">file.path</span>(<span class="st">"D:"</span>, <span class="st">"data"</span>, <span class="st">"air_quality_data"</span>, <span class="st">"eea_stations_2023"</span>, <span class="st">"nl_stations_2023.csv"</span>)</span>
-<span id="cb28-6"><a href="#cb28-6" aria-hidden="true" tabindex="-1"></a>station_locations <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(station_location_path)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>df <span class="ot">&lt;-</span> df <span class="sc">%&gt;%</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>   <span class="co">#mutate(Samplingpoint = str_remove(Samplingpoint, "BE/"))</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>   <span class="fu">mutate</span>(<span class="at">Samplingpoint =</span> <span class="fu">str_remove</span>(Samplingpoint, <span class="st">"NL/"</span>))</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="co">#station_location_path &lt;- file.path("D:", "data", "air_quality_data", "eea_stations_2023", "belgium_stations_2023.csv")</span></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>station_location_path <span class="ot">&lt;-</span> <span class="fu">file.path</span>(<span class="st">"D:"</span>, <span class="st">"data"</span>, <span class="st">"air_quality_data"</span>, <span class="st">"eea_stations_2023"</span>, <span class="st">"nl_stations_2023.csv"</span>)</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>station_locations <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(station_location_path)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stderr">
 <pre><code>Rows: 4685 Columns: 27
 ── Column specification ────────────────────────────────────────────────────────
@@ -393,72 +299,32 @@ dbl  (8): Year, Air Pollution Level, Data Coverage, Verification, Longitude,...
 ℹ Use `spec()` to retrieve the full column specification for this data.
 ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.</code></pre>
 </div>
-<div class="sourceCode cell-code" id="cb30"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a>station_locations <span class="ot">&lt;-</span> <span class="fu">rename</span>(station_locations, <span class="at">Samplingpoint =</span> <span class="st">'Sampling Point Id'</span>)</span>
-<span id="cb30-2"><a href="#cb30-2" aria-hidden="true" tabindex="-1"></a>station_locations <span class="sc">%&gt;%</span> </span>
-<span id="cb30-3"><a href="#cb30-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">distinct</span>(Samplingpoint, Longitude, Latitude) <span class="ot">-&gt;</span> unique_locations</span>
-<span id="cb30-4"><a href="#cb30-4" aria-hidden="true" tabindex="-1"></a>merged_df <span class="ot">&lt;-</span> df <span class="sc">%&gt;%</span> </span>
-<span id="cb30-5"><a href="#cb30-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">left_join</span>(unique_locations <span class="sc">%&gt;%</span> <span class="fu">select</span>(Samplingpoint, Longitude, Latitude), <span class="at">by =</span> <span class="st">"Samplingpoint"</span>)</span>
-<span id="cb30-6"><a href="#cb30-6" aria-hidden="true" tabindex="-1"></a>merged_df</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-stdout">
-<pre><code># A tibble: 442,873 × 14
-# Groups:   Samplingpoint [53]
-   Samplingpoint   Pollutant Start               End                 Value Unit 
-   &lt;chr&gt;               &lt;int&gt; &lt;dttm&gt;              &lt;dttm&gt;              &lt;dbl&gt; &lt;chr&gt;
- 1 SPO-NL00007_06…      6001 2023-01-01 01:00:00 2023-01-01 02:00:00 131.  ug.m…
- 2 SPO-NL00007_06…      6001 2023-01-01 02:00:00 2023-01-01 03:00:00  86.2 ug.m…
- 3 SPO-NL00007_06…      6001 2023-01-01 03:00:00 2023-01-01 04:00:00  30.7 ug.m…
- 4 SPO-NL00007_06…      6001 2023-01-01 04:00:00 2023-01-01 05:00:00  11   ug.m…
- 5 SPO-NL00007_06…      6001 2023-01-01 05:00:00 2023-01-01 06:00:00   9.1 ug.m…
- 6 SPO-NL00007_06…      6001 2023-01-01 06:00:00 2023-01-01 07:00:00   5.3 ug.m…
- 7 SPO-NL00007_06…      6001 2023-01-01 07:00:00 2023-01-01 08:00:00   2.8 ug.m…
- 8 SPO-NL00007_06…      6001 2023-01-01 08:00:00 2023-01-01 09:00:00   2.3 ug.m…
- 9 SPO-NL00007_06…      6001 2023-01-01 10:00:00 2023-01-01 11:00:00  -0.6 ug.m…
-10 SPO-NL00007_06…      6001 2023-01-01 11:00:00 2023-01-01 12:00:00   1.4 ug.m…
-# ℹ 442,863 more rows
-# ℹ 8 more variables: AggType &lt;chr&gt;, Validity &lt;int&gt;, Verification &lt;int&gt;,
-#   ResultTime &lt;dttm&gt;, DataCapture &lt;dbl&gt;, FkObservationLog &lt;chr&gt;,
-#   Longitude &lt;dbl&gt;, Latitude &lt;dbl&gt;</code></pre>
+<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>station_locations <span class="ot">&lt;-</span> <span class="fu">rename</span>(station_locations, <span class="at">Samplingpoint =</span> <span class="st">'Sampling Point Id'</span>)</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>station_locations <span class="sc">%&gt;%</span> </span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">distinct</span>(Samplingpoint, Longitude, Latitude) <span class="ot">-&gt;</span> unique_locations</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>merged_df <span class="ot">&lt;-</span> df <span class="sc">%&gt;%</span> </span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">left_join</span>(unique_locations <span class="sc">%&gt;%</span> <span class="fu">select</span>(Samplingpoint, Longitude, Latitude), <span class="at">by =</span> <span class="st">"Samplingpoint"</span>)</span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>station_locations_sf <span class="ot">&lt;-</span> <span class="fu">st_as_sf</span>(station_locations, <span class="at">coords =</span> <span class="fu">c</span>(<span class="st">"Longitude"</span>, <span class="st">"Latitude"</span>))</span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>air_sf <span class="ot">&lt;-</span> <span class="fu">st_as_sf</span>(merged_df, <span class="at">coords =</span> <span class="fu">c</span>(<span class="st">"Longitude"</span>, <span class="st">"Latitude"</span>))</span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a><span class="fu">st_crs</span>(air_sf) <span class="ot">&lt;-</span> <span class="st">"EPSG:4326"</span></span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>air_sf<span class="sc">$</span>station_locations</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Warning: Unknown or uninitialised column: `station_locations`.</code></pre>
 </div>
-<div class="sourceCode cell-code" id="cb32"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb32-1"><a href="#cb32-1" aria-hidden="true" tabindex="-1"></a>station_locations_sf <span class="ot">&lt;-</span> <span class="fu">st_as_sf</span>(station_locations, <span class="at">coords =</span> <span class="fu">c</span>(<span class="st">"Longitude"</span>, <span class="st">"Latitude"</span>))</span>
-<span id="cb32-2"><a href="#cb32-2" aria-hidden="true" tabindex="-1"></a>air_sf <span class="ot">&lt;-</span> <span class="fu">st_as_sf</span>(merged_df, <span class="at">coords =</span> <span class="fu">c</span>(<span class="st">"Longitude"</span>, <span class="st">"Latitude"</span>))</span>
-<span id="cb32-3"><a href="#cb32-3" aria-hidden="true" tabindex="-1"></a><span class="fu">st_crs</span>(air_sf) <span class="ot">&lt;-</span> <span class="st">"EPSG:4326"</span></span>
-<span id="cb32-4"><a href="#cb32-4" aria-hidden="true" tabindex="-1"></a>air_sf</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>Simple feature collection with 442873 features and 12 fields
-Geometry type: POINT
-Dimension:     XY
-Bounding box:  xmin: 3.8386 ymin: 50.888 xmax: 6.9195 ymax: 53.3304
-Geodetic CRS:  WGS 84
-# A tibble: 442,873 × 13
-# Groups:   Samplingpoint [53]
-   Samplingpoint   Pollutant Start               End                 Value Unit 
- * &lt;chr&gt;               &lt;int&gt; &lt;dttm&gt;              &lt;dttm&gt;              &lt;dbl&gt; &lt;chr&gt;
- 1 SPO-NL00007_06…      6001 2023-01-01 01:00:00 2023-01-01 02:00:00 131.  ug.m…
- 2 SPO-NL00007_06…      6001 2023-01-01 02:00:00 2023-01-01 03:00:00  86.2 ug.m…
- 3 SPO-NL00007_06…      6001 2023-01-01 03:00:00 2023-01-01 04:00:00  30.7 ug.m…
- 4 SPO-NL00007_06…      6001 2023-01-01 04:00:00 2023-01-01 05:00:00  11   ug.m…
- 5 SPO-NL00007_06…      6001 2023-01-01 05:00:00 2023-01-01 06:00:00   9.1 ug.m…
- 6 SPO-NL00007_06…      6001 2023-01-01 06:00:00 2023-01-01 07:00:00   5.3 ug.m…
- 7 SPO-NL00007_06…      6001 2023-01-01 07:00:00 2023-01-01 08:00:00   2.8 ug.m…
- 8 SPO-NL00007_06…      6001 2023-01-01 08:00:00 2023-01-01 09:00:00   2.3 ug.m…
- 9 SPO-NL00007_06…      6001 2023-01-01 10:00:00 2023-01-01 11:00:00  -0.6 ug.m…
-10 SPO-NL00007_06…      6001 2023-01-01 11:00:00 2023-01-01 12:00:00   1.4 ug.m…
-# ℹ 442,863 more rows
-# ℹ 7 more variables: AggType &lt;chr&gt;, Validity &lt;int&gt;, Verification &lt;int&gt;,
-#   ResultTime &lt;dttm&gt;, DataCapture &lt;dbl&gt;, FkObservationLog &lt;chr&gt;,
-#   geometry &lt;POINT [°]&gt;</code></pre>
+<pre><code>NULL</code></pre>
 </div>
 </div>
 <p>Then examine the time series</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb34"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb34-1"><a href="#cb34-1" aria-hidden="true" tabindex="-1"></a>distinct_stations <span class="ot">&lt;-</span> <span class="fu">unique</span>(air_sf<span class="sc">$</span>Samplingpoint)[<span class="dv">1</span><span class="sc">:</span><span class="dv">12</span>]</span>
-<span id="cb34-2"><a href="#cb34-2" aria-hidden="true" tabindex="-1"></a>plotting_stations <span class="ot">&lt;-</span> air_sf[air_sf<span class="sc">$</span>Samplingpoint<span class="sc">%in%</span>distinct_stations,]</span>
-<span id="cb34-3"><a href="#cb34-3" aria-hidden="true" tabindex="-1"></a>plotting_stations <span class="sc">%&gt;%</span> </span>
-<span id="cb34-4"><a href="#cb34-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">x=</span>Start, <span class="at">y=</span>Value)) <span class="sc">+</span> </span>
-<span id="cb34-5"><a href="#cb34-5" aria-hidden="true" tabindex="-1"></a>    <span class="fu">geom_line</span>() <span class="sc">+</span> </span>
-<span id="cb34-6"><a href="#cb34-6" aria-hidden="true" tabindex="-1"></a>    <span class="fu">facet_wrap</span>(<span class="sc">~</span> Samplingpoint) <span class="sc">+</span></span>
-<span id="cb34-7"><a href="#cb34-7" aria-hidden="true" tabindex="-1"></a>    <span class="fu">theme</span>(<span class="at">axis.text.x =</span> <span class="fu">element_text</span>(<span class="at">angle =</span> <span class="dv">45</span>, <span class="at">hjust =</span> <span class="dv">1</span>)) <span class="sc">+</span></span>
-<span id="cb34-8"><a href="#cb34-8" aria-hidden="true" tabindex="-1"></a>    <span class="fu">labs</span>(<span class="at">title =</span> <span class="st">"Time series of monitoring stations"</span>, <span class="at">x =</span> <span class="st">"Time, hourly"</span>, <span class="at">y =</span> <span class="st">"Conc (μg/m³)"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>distinct_stations <span class="ot">&lt;-</span> <span class="fu">unique</span>(air_sf<span class="sc">$</span>Samplingpoint)[<span class="dv">1</span><span class="sc">:</span><span class="dv">12</span>]</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>plotting_stations <span class="ot">&lt;-</span> air_sf[air_sf<span class="sc">$</span>Samplingpoint<span class="sc">%in%</span>distinct_stations,]</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>plotting_stations <span class="sc">%&gt;%</span> </span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">x=</span>Start, <span class="at">y=</span>Value)) <span class="sc">+</span> </span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>    <span class="fu">geom_line</span>() <span class="sc">+</span> </span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>    <span class="fu">facet_wrap</span>(<span class="sc">~</span> Samplingpoint) <span class="sc">+</span></span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>    <span class="fu">theme</span>(<span class="at">axis.text.x =</span> <span class="fu">element_text</span>(<span class="at">angle =</span> <span class="dv">45</span>, <span class="at">hjust =</span> <span class="dv">1</span>)) <span class="sc">+</span></span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>    <span class="fu">labs</span>(<span class="at">title =</span> <span class="st">"Time series of monitoring stations"</span>, <span class="at">x =</span> <span class="st">"Time, hourly"</span>, <span class="at">y =</span> <span class="st">"Conc (μg/m³)"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output-display">
 <div>
 <figure class="figure">
@@ -467,12 +333,10 @@ Geodetic CRS:  WGS 84
 </div>
 </div>
 </div>
+<p>The above figure shows 12 of the stations observations over 2023. The data is currently at the hourly resolution.</p>
+<p>Next, load a map of the Netherlands. The border is from <a href="https://service.pdok.nl/kadaster/bestuurlijkegrenzen/atom/bestuurlijke_grenzen.xml" class="uri">https://service.pdok.nl/kadaster/bestuurlijkegrenzen/atom/bestuurlijke_grenzen.xml</a>. A number of processing steps are done here, namely to generate some grid points within the map border. These points will be used as locations to make spatial predictions later on.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb35"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb35-1"><a href="#cb35-1" aria-hidden="true" tabindex="-1"></a>air_sf <span class="ot">&lt;-</span> air_sf <span class="sc">%&gt;%</span> <span class="fu">filter</span>(Start<span class="sc">==</span><span class="fu">as.POSIXct</span>(<span class="st">"2023-01-01 16:00:00  "</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</div>
-<p>Then let’s load a map of the Netherlands. The border is from <a href="https://service.pdok.nl/kadaster/bestuurlijkegrenzen/atom/bestuurlijke_grenzen.xml" class="uri">https://service.pdok.nl/kadaster/bestuurlijkegrenzen/atom/bestuurlijke_grenzen.xml</a>.</p>
-<div class="cell">
-<div class="sourceCode cell-code" id="cb36"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb36-1"><a href="#cb36-1" aria-hidden="true" tabindex="-1"></a>map <span class="ot">&lt;-</span> <span class="fu">st_read</span>(<span class="fu">file.path</span>(<span class="st">"D:"</span>, <span class="st">"data"</span>, <span class="st">"maps"</span>, <span class="st">"netherlands_bestuurlijkegrenzen_2021"</span>, <span class="st">"bestuurlijkegrenzen.gpkg"</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>map <span class="ot">&lt;-</span> <span class="fu">st_read</span>(<span class="fu">file.path</span>(<span class="st">"D:"</span>, <span class="st">"data"</span>, <span class="st">"maps"</span>, <span class="st">"netherlands_bestuurlijkegrenzen_2021"</span>, <span class="st">"bestuurlijkegrenzen.gpkg"</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Multiple layers are present in data source D:\data\maps\netherlands_bestuurlijkegrenzen_2021\bestuurlijkegrenzen.gpkg, reading layer `gemeenten'.
 Use `st_layers' to list all layer names and their type in a data source.
@@ -493,27 +357,26 @@ Dimension:     XY
 Bounding box:  xmin: 10425.16 ymin: 306846.2 xmax: 278026.1 ymax: 621876.3
 Projected CRS: Amersfoort / RD New</code></pre>
 </div>
-<div class="sourceCode cell-code" id="cb40"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb40-1"><a href="#cb40-1" aria-hidden="true" tabindex="-1"></a>map <span class="ot">&lt;-</span> <span class="fu">st_union</span>(map)</span>
-<span id="cb40-2"><a href="#cb40-2" aria-hidden="true" tabindex="-1"></a>map <span class="ot">&lt;-</span> <span class="fu">st_as_sf</span>(map)</span>
-<span id="cb40-3"><a href="#cb40-3" aria-hidden="true" tabindex="-1"></a>map <span class="ot">&lt;-</span> <span class="fu">st_transform</span>(map, <span class="at">crs =</span> <span class="fu">st_crs</span>(air_sf))</span>
-<span id="cb40-4"><a href="#cb40-4" aria-hidden="true" tabindex="-1"></a><span class="co"># raster grid covering map</span></span>
-<span id="cb40-5"><a href="#cb40-5" aria-hidden="true" tabindex="-1"></a>grid <span class="ot">&lt;-</span> terra<span class="sc">::</span><span class="fu">rast</span>(map, <span class="at">nrows =</span> <span class="dv">100</span>, <span class="at">ncols =</span> <span class="dv">100</span>)</span>
-<span id="cb40-6"><a href="#cb40-6" aria-hidden="true" tabindex="-1"></a><span class="co"># coordinates of all cells</span></span>
-<span id="cb40-7"><a href="#cb40-7" aria-hidden="true" tabindex="-1"></a>xy <span class="ot">&lt;-</span> terra<span class="sc">::</span><span class="fu">xyFromCell</span>(grid, <span class="dv">1</span><span class="sc">:</span><span class="fu">ncell</span>(grid))</span>
-<span id="cb40-8"><a href="#cb40-8" aria-hidden="true" tabindex="-1"></a><span class="co"># transform points to a sf object</span></span>
-<span id="cb40-9"><a href="#cb40-9" aria-hidden="true" tabindex="-1"></a>dp <span class="ot">&lt;-</span> <span class="fu">st_as_sf</span>(<span class="fu">as.data.frame</span>(xy), <span class="at">coords =</span> <span class="fu">c</span>(<span class="st">"x"</span>, <span class="st">"y"</span>),</span>
-<span id="cb40-10"><a href="#cb40-10" aria-hidden="true" tabindex="-1"></a>                 <span class="at">crs =</span> <span class="fu">st_crs</span>(map))</span>
-<span id="cb40-11"><a href="#cb40-11" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-12"><a href="#cb40-12" aria-hidden="true" tabindex="-1"></a><span class="co"># indices points within the map</span></span>
-<span id="cb40-13"><a href="#cb40-13" aria-hidden="true" tabindex="-1"></a>indicespointswithin <span class="ot">&lt;-</span> <span class="fu">which</span>(<span class="fu">st_intersects</span>(dp, map,</span>
-<span id="cb40-14"><a href="#cb40-14" aria-hidden="true" tabindex="-1"></a>                                           <span class="at">sparse =</span> <span class="cn">FALSE</span>))</span>
-<span id="cb40-15"><a href="#cb40-15" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-16"><a href="#cb40-16" aria-hidden="true" tabindex="-1"></a><span class="co"># points within the map</span></span>
-<span id="cb40-17"><a href="#cb40-17" aria-hidden="true" tabindex="-1"></a>dp <span class="ot">&lt;-</span> <span class="fu">st_filter</span>(dp, map)</span>
-<span id="cb40-18"><a href="#cb40-18" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-19"><a href="#cb40-19" aria-hidden="true" tabindex="-1"></a><span class="co"># plot</span></span>
-<span id="cb40-20"><a href="#cb40-20" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>() <span class="sc">+</span> <span class="fu">geom_sf</span>(<span class="at">data =</span> map) <span class="sc">+</span></span>
-<span id="cb40-21"><a href="#cb40-21" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_sf</span>(<span class="at">data =</span> dp)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>map <span class="ot">&lt;-</span> <span class="fu">st_union</span>(map)</span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>map <span class="ot">&lt;-</span> <span class="fu">st_as_sf</span>(map)</span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>map <span class="ot">&lt;-</span> <span class="fu">st_transform</span>(map, <span class="at">crs =</span> <span class="fu">st_crs</span>(air_sf))</span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a><span class="co"># raster grid covering map</span></span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a>grid <span class="ot">&lt;-</span> terra<span class="sc">::</span><span class="fu">rast</span>(map, <span class="at">nrows =</span> <span class="dv">100</span>, <span class="at">ncols =</span> <span class="dv">100</span>)</span>
+<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a><span class="co"># coordinates of all cells</span></span>
+<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a>xy <span class="ot">&lt;-</span> terra<span class="sc">::</span><span class="fu">xyFromCell</span>(grid, <span class="dv">1</span><span class="sc">:</span><span class="fu">ncell</span>(grid))</span>
+<span id="cb14-8"><a href="#cb14-8" aria-hidden="true" tabindex="-1"></a><span class="co"># transform points to a sf object</span></span>
+<span id="cb14-9"><a href="#cb14-9" aria-hidden="true" tabindex="-1"></a>dp <span class="ot">&lt;-</span> <span class="fu">st_as_sf</span>(<span class="fu">as.data.frame</span>(xy), <span class="at">coords =</span> <span class="fu">c</span>(<span class="st">"x"</span>, <span class="st">"y"</span>),</span>
+<span id="cb14-10"><a href="#cb14-10" aria-hidden="true" tabindex="-1"></a>                 <span class="at">crs =</span> <span class="fu">st_crs</span>(map))</span>
+<span id="cb14-11"><a href="#cb14-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-12"><a href="#cb14-12" aria-hidden="true" tabindex="-1"></a><span class="co"># indices points within the map</span></span>
+<span id="cb14-13"><a href="#cb14-13" aria-hidden="true" tabindex="-1"></a>indicespointswithin <span class="ot">&lt;-</span> <span class="fu">which</span>(<span class="fu">st_intersects</span>(dp, map,</span>
+<span id="cb14-14"><a href="#cb14-14" aria-hidden="true" tabindex="-1"></a>                                           <span class="at">sparse =</span> <span class="cn">FALSE</span>))</span>
+<span id="cb14-15"><a href="#cb14-15" aria-hidden="true" tabindex="-1"></a><span class="co"># points within the map</span></span>
+<span id="cb14-16"><a href="#cb14-16" aria-hidden="true" tabindex="-1"></a>dp <span class="ot">&lt;-</span> <span class="fu">st_filter</span>(dp, map)</span>
+<span id="cb14-17"><a href="#cb14-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-18"><a href="#cb14-18" aria-hidden="true" tabindex="-1"></a><span class="co"># plot</span></span>
+<span id="cb14-19"><a href="#cb14-19" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>() <span class="sc">+</span> <span class="fu">geom_sf</span>(<span class="at">data =</span> map) <span class="sc">+</span></span>
+<span id="cb14-20"><a href="#cb14-20" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_sf</span>(<span class="at">data =</span> dp)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output-display">
 <div>
 <figure class="figure">
@@ -522,25 +385,26 @@ Projected CRS: Amersfoort / RD New</code></pre>
 </div>
 </div>
 </div>
-<p>More data process</p>
+<p>We can see the grid of spatial points is at quite a high resolution.</p>
+<p>Next download temperature and precipitation data using the <code>geodata</code> package.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb41"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb41-1"><a href="#cb41-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(geodata)</span>
-<span id="cb41-2"><a href="#cb41-2" aria-hidden="true" tabindex="-1"></a><span class="co"># With geodata library</span></span>
-<span id="cb41-3"><a href="#cb41-3" aria-hidden="true" tabindex="-1"></a>save_path <span class="ot">&lt;-</span> <span class="fu">file.path</span>(<span class="st">"D:"</span>, <span class="st">"data"</span>, <span class="st">"air_quality_data"</span>, <span class="st">"aux_variables"</span>)</span>
-<span id="cb41-4"><a href="#cb41-4" aria-hidden="true" tabindex="-1"></a>covtemp <span class="ot">&lt;-</span> <span class="fu">worldclim_global</span>(<span class="at">var =</span> <span class="st">"tavg"</span>, <span class="at">res =</span> <span class="dv">10</span>,</span>
-<span id="cb41-5"><a href="#cb41-5" aria-hidden="true" tabindex="-1"></a>                            <span class="at">path =</span> save_path)</span>
-<span id="cb41-6"><a href="#cb41-6" aria-hidden="true" tabindex="-1"></a>covprec <span class="ot">&lt;-</span> <span class="fu">worldclim_global</span>(<span class="at">var =</span> <span class="st">"prec"</span>, <span class="at">res =</span> <span class="dv">10</span>,</span>
-<span id="cb41-7"><a href="#cb41-7" aria-hidden="true" tabindex="-1"></a>                            <span class="at">path =</span> save_path)</span>
-<span id="cb41-8"><a href="#cb41-8" aria-hidden="true" tabindex="-1"></a><span class="co"># Extract at observed locations</span></span>
-<span id="cb41-9"><a href="#cb41-9" aria-hidden="true" tabindex="-1"></a>air_sf<span class="sc">$</span>covtemp <span class="ot">&lt;-</span> <span class="fu">extract</span>(<span class="fu">mean</span>(covtemp), <span class="fu">st_coordinates</span>(air_sf))[, <span class="dv">1</span>]</span>
-<span id="cb41-10"><a href="#cb41-10" aria-hidden="true" tabindex="-1"></a>air_sf<span class="sc">$</span>covprec <span class="ot">&lt;-</span> <span class="fu">extract</span>(<span class="fu">mean</span>(covprec), <span class="fu">st_coordinates</span>(air_sf))[, <span class="dv">1</span>]</span>
-<span id="cb41-11"><a href="#cb41-11" aria-hidden="true" tabindex="-1"></a><span class="co"># Extract at prediction locations</span></span>
-<span id="cb41-12"><a href="#cb41-12" aria-hidden="true" tabindex="-1"></a>dp<span class="sc">$</span>covtemp <span class="ot">&lt;-</span> <span class="fu">extract</span>(<span class="fu">mean</span>(covtemp), <span class="fu">st_coordinates</span>(dp))[, <span class="dv">1</span>]</span>
-<span id="cb41-13"><a href="#cb41-13" aria-hidden="true" tabindex="-1"></a>dp<span class="sc">$</span>covprec <span class="ot">&lt;-</span> <span class="fu">extract</span>(<span class="fu">mean</span>(covprec), <span class="fu">st_coordinates</span>(dp))[, <span class="dv">1</span>]</span>
-<span id="cb41-14"><a href="#cb41-14" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb41-15"><a href="#cb41-15" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>() <span class="sc">+</span> <span class="fu">geom_sf</span>(<span class="at">data =</span> map) <span class="sc">+</span></span>
-<span id="cb41-16"><a href="#cb41-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_sf</span>(<span class="at">data =</span> air_sf, <span class="fu">aes</span>(<span class="at">col =</span> Value)) <span class="sc">+</span></span>
-<span id="cb41-17"><a href="#cb41-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_color_viridis</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb15"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(geodata)</span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a><span class="co"># With geodata library</span></span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a>save_path <span class="ot">&lt;-</span> <span class="fu">file.path</span>(<span class="st">"D:"</span>, <span class="st">"data"</span>, <span class="st">"air_quality_data"</span>, <span class="st">"aux_variables"</span>)</span>
+<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a>covtemp <span class="ot">&lt;-</span> <span class="fu">worldclim_global</span>(<span class="at">var =</span> <span class="st">"tavg"</span>, <span class="at">res =</span> <span class="dv">10</span>,</span>
+<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a>                            <span class="at">path =</span> save_path)</span>
+<span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a>covprec <span class="ot">&lt;-</span> <span class="fu">worldclim_global</span>(<span class="at">var =</span> <span class="st">"prec"</span>, <span class="at">res =</span> <span class="dv">10</span>,</span>
+<span id="cb15-7"><a href="#cb15-7" aria-hidden="true" tabindex="-1"></a>                            <span class="at">path =</span> save_path)</span>
+<span id="cb15-8"><a href="#cb15-8" aria-hidden="true" tabindex="-1"></a><span class="co"># Extract at observed locations</span></span>
+<span id="cb15-9"><a href="#cb15-9" aria-hidden="true" tabindex="-1"></a>air_sf<span class="sc">$</span>covtemp <span class="ot">&lt;-</span> <span class="fu">extract</span>(<span class="fu">mean</span>(covtemp), <span class="fu">st_coordinates</span>(air_sf))[, <span class="dv">1</span>]</span>
+<span id="cb15-10"><a href="#cb15-10" aria-hidden="true" tabindex="-1"></a>air_sf<span class="sc">$</span>covprec <span class="ot">&lt;-</span> <span class="fu">extract</span>(<span class="fu">mean</span>(covprec), <span class="fu">st_coordinates</span>(air_sf))[, <span class="dv">1</span>]</span>
+<span id="cb15-11"><a href="#cb15-11" aria-hidden="true" tabindex="-1"></a><span class="co"># Extract at prediction locations</span></span>
+<span id="cb15-12"><a href="#cb15-12" aria-hidden="true" tabindex="-1"></a>dp<span class="sc">$</span>covtemp <span class="ot">&lt;-</span> <span class="fu">extract</span>(<span class="fu">mean</span>(covtemp), <span class="fu">st_coordinates</span>(dp))[, <span class="dv">1</span>]</span>
+<span id="cb15-13"><a href="#cb15-13" aria-hidden="true" tabindex="-1"></a>dp<span class="sc">$</span>covprec <span class="ot">&lt;-</span> <span class="fu">extract</span>(<span class="fu">mean</span>(covprec), <span class="fu">st_coordinates</span>(dp))[, <span class="dv">1</span>]</span>
+<span id="cb15-14"><a href="#cb15-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-15"><a href="#cb15-15" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>() <span class="sc">+</span> <span class="fu">geom_sf</span>(<span class="at">data =</span> map) <span class="sc">+</span></span>
+<span id="cb15-16"><a href="#cb15-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_sf</span>(<span class="at">data =</span> air_sf, <span class="fu">aes</span>(<span class="at">col =</span> Value)) <span class="sc">+</span></span>
+<span id="cb15-17"><a href="#cb15-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_color_viridis</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output-display">
 <div>
 <figure class="figure">
@@ -548,9 +412,9 @@ Projected CRS: Amersfoort / RD New</code></pre>
 </figure>
 </div>
 </div>
-<div class="sourceCode cell-code" id="cb42"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb42-1"><a href="#cb42-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>() <span class="sc">+</span> <span class="fu">geom_sf</span>(<span class="at">data =</span> map) <span class="sc">+</span></span>
-<span id="cb42-2"><a href="#cb42-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_sf</span>(<span class="at">data =</span> air_sf, <span class="fu">aes</span>(<span class="at">col =</span> covtemp)) <span class="sc">+</span></span>
-<span id="cb42-3"><a href="#cb42-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_color_viridis</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb16"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>() <span class="sc">+</span> <span class="fu">geom_sf</span>(<span class="at">data =</span> map) <span class="sc">+</span></span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_sf</span>(<span class="at">data =</span> air_sf, <span class="fu">aes</span>(<span class="at">col =</span> covtemp)) <span class="sc">+</span></span>
+<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_color_viridis</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output-display">
 <div>
 <figure class="figure">
@@ -558,9 +422,9 @@ Projected CRS: Amersfoort / RD New</code></pre>
 </figure>
 </div>
 </div>
-<div class="sourceCode cell-code" id="cb43"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb43-1"><a href="#cb43-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>() <span class="sc">+</span> <span class="fu">geom_sf</span>(<span class="at">data =</span> map) <span class="sc">+</span></span>
-<span id="cb43-2"><a href="#cb43-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_sf</span>(<span class="at">data =</span> air_sf, <span class="fu">aes</span>(<span class="at">col =</span> covprec)) <span class="sc">+</span></span>
-<span id="cb43-3"><a href="#cb43-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_color_viridis</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>() <span class="sc">+</span> <span class="fu">geom_sf</span>(<span class="at">data =</span> map) <span class="sc">+</span></span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_sf</span>(<span class="at">data =</span> air_sf, <span class="fu">aes</span>(<span class="at">col =</span> covprec)) <span class="sc">+</span></span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_color_viridis</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output-display">
 <div>
 <figure class="figure">
@@ -568,9 +432,9 @@ Projected CRS: Amersfoort / RD New</code></pre>
 </figure>
 </div>
 </div>
-<div class="sourceCode cell-code" id="cb44"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb44-1"><a href="#cb44-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>() <span class="sc">+</span> <span class="fu">geom_sf</span>(<span class="at">data =</span> map) <span class="sc">+</span></span>
-<span id="cb44-2"><a href="#cb44-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_sf</span>(<span class="at">data =</span> dp, <span class="fu">aes</span>(<span class="at">col =</span> covtemp)) <span class="sc">+</span></span>
-<span id="cb44-3"><a href="#cb44-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_color_viridis</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb18"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>() <span class="sc">+</span> <span class="fu">geom_sf</span>(<span class="at">data =</span> map) <span class="sc">+</span></span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_sf</span>(<span class="at">data =</span> dp, <span class="fu">aes</span>(<span class="at">col =</span> covtemp)) <span class="sc">+</span></span>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_color_viridis</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output-display">
 <div>
 <figure class="figure">
@@ -578,9 +442,9 @@ Projected CRS: Amersfoort / RD New</code></pre>
 </figure>
 </div>
 </div>
-<div class="sourceCode cell-code" id="cb45"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb45-1"><a href="#cb45-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>() <span class="sc">+</span> <span class="fu">geom_sf</span>(<span class="at">data =</span> map) <span class="sc">+</span></span>
-<span id="cb45-2"><a href="#cb45-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_sf</span>(<span class="at">data =</span> dp, <span class="fu">aes</span>(<span class="at">col =</span> covprec)) <span class="sc">+</span></span>
-<span id="cb45-3"><a href="#cb45-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_color_viridis</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb19"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>() <span class="sc">+</span> <span class="fu">geom_sf</span>(<span class="at">data =</span> map) <span class="sc">+</span></span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_sf</span>(<span class="at">data =</span> dp, <span class="fu">aes</span>(<span class="at">col =</span> covprec)) <span class="sc">+</span></span>
+<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_color_viridis</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output-display">
 <div>
 <figure class="figure">
@@ -589,13 +453,13 @@ Projected CRS: Amersfoort / RD New</code></pre>
 </div>
 </div>
 </div>
-<p>Looks like there is a couple of nans in there. Let’s impute using the mean.</p>
+<p>Next mean impute out the NANs in the data. A better imputation method would certainly be better, wouldn’t it?</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb46"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb46-1"><a href="#cb46-1" aria-hidden="true" tabindex="-1"></a>dp <span class="ot">&lt;-</span> dp <span class="sc">%&gt;%</span> <span class="fu">mutate</span>(<span class="at">covprec=</span><span class="fu">ifelse</span>(<span class="fu">is.na</span>(covprec), <span class="fu">mean</span>(covprec, <span class="at">na.rm=</span><span class="cn">TRUE</span>), covprec),</span>
-<span id="cb46-2"><a href="#cb46-2" aria-hidden="true" tabindex="-1"></a>                    <span class="at">covtemp=</span><span class="fu">ifelse</span>(<span class="fu">is.na</span>(covtemp), <span class="fu">mean</span>(covtemp, <span class="at">na.rm=</span><span class="cn">TRUE</span>), covtemp))</span>
-<span id="cb46-3"><a href="#cb46-3" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>() <span class="sc">+</span> <span class="fu">geom_sf</span>(<span class="at">data =</span> map) <span class="sc">+</span></span>
-<span id="cb46-4"><a href="#cb46-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_sf</span>(<span class="at">data =</span> dp, <span class="fu">aes</span>(<span class="at">col =</span> covtemp)) <span class="sc">+</span></span>
-<span id="cb46-5"><a href="#cb46-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_color_viridis</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb20"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>dp <span class="ot">&lt;-</span> dp <span class="sc">%&gt;%</span> <span class="fu">mutate</span>(<span class="at">covprec=</span><span class="fu">ifelse</span>(<span class="fu">is.na</span>(covprec), <span class="fu">mean</span>(covprec, <span class="at">na.rm=</span><span class="cn">TRUE</span>), covprec),</span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a>                    <span class="at">covtemp=</span><span class="fu">ifelse</span>(<span class="fu">is.na</span>(covtemp), <span class="fu">mean</span>(covtemp, <span class="at">na.rm=</span><span class="cn">TRUE</span>), covtemp))</span>
+<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>() <span class="sc">+</span> <span class="fu">geom_sf</span>(<span class="at">data =</span> map) <span class="sc">+</span></span>
+<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_sf</span>(<span class="at">data =</span> dp, <span class="fu">aes</span>(<span class="at">col =</span> covtemp)) <span class="sc">+</span></span>
+<span id="cb20-5"><a href="#cb20-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_color_viridis</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output-display">
 <div>
 <figure class="figure">
@@ -603,9 +467,9 @@ Projected CRS: Amersfoort / RD New</code></pre>
 </figure>
 </div>
 </div>
-<div class="sourceCode cell-code" id="cb47"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb47-1"><a href="#cb47-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>() <span class="sc">+</span> <span class="fu">geom_sf</span>(<span class="at">data =</span> map) <span class="sc">+</span></span>
-<span id="cb47-2"><a href="#cb47-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_sf</span>(<span class="at">data =</span> dp, <span class="fu">aes</span>(<span class="at">col =</span> covprec)) <span class="sc">+</span></span>
-<span id="cb47-3"><a href="#cb47-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_color_viridis</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb21"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>() <span class="sc">+</span> <span class="fu">geom_sf</span>(<span class="at">data =</span> map) <span class="sc">+</span></span>
+<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_sf</span>(<span class="at">data =</span> dp, <span class="fu">aes</span>(<span class="at">col =</span> covprec)) <span class="sc">+</span></span>
+<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_color_viridis</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output-display">
 <div>
 <figure class="figure">
@@ -616,20 +480,20 @@ Projected CRS: Amersfoort / RD New</code></pre>
 </div>
 <p>Saw in the forum <a href="https://groups.google.com/g/r-inla-discussion-group/c/z_v2oIh2egs" class="uri">https://groups.google.com/g/r-inla-discussion-group/c/z_v2oIh2egs</a> it’s good to work with units of kilometers which is intuitive from previous spatial data work.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb48"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb48-1"><a href="#cb48-1" aria-hidden="true" tabindex="-1"></a><span class="fu">st_crs</span>(<span class="st">"EPSG:3857"</span>)<span class="sc">$</span>proj4string</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb22"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="fu">st_crs</span>(<span class="st">"EPSG:3857"</span>)<span class="sc">$</span>proj4string</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>[1] "+proj=merc +a=6378137 +b=6378137 +lat_ts=0 +lon_0=0 +x_0=0 +y_0=0 +k=1 +units=m +nadgrids=@null +wktext +no_defs"</code></pre>
 </div>
-<div class="sourceCode cell-code" id="cb50"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb50-1"><a href="#cb50-1" aria-hidden="true" tabindex="-1"></a>projMercator<span class="ot">&lt;-</span><span class="st">"+proj=merc +a=6378137 +b=6378137 +lat_ts=0 +lon_0=0</span></span>
-<span id="cb50-2"><a href="#cb50-2" aria-hidden="true" tabindex="-1"></a><span class="st">+x_0=0 +y_0=0 +k=1 +units=km +nadgrids=@null +wktext +no_defs"</span></span>
-<span id="cb50-3"><a href="#cb50-3" aria-hidden="true" tabindex="-1"></a>air_sf_project <span class="ot">&lt;-</span> <span class="fu">st_transform</span>(air_sf, <span class="at">crs =</span> projMercator)</span>
-<span id="cb50-4"><a href="#cb50-4" aria-hidden="true" tabindex="-1"></a>dp <span class="ot">&lt;-</span> <span class="fu">st_transform</span>(dp, <span class="at">crs =</span> projMercator)</span>
-<span id="cb50-5"><a href="#cb50-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Observed coordinates</span></span>
-<span id="cb50-6"><a href="#cb50-6" aria-hidden="true" tabindex="-1"></a>coo <span class="ot">&lt;-</span> <span class="fu">st_coordinates</span>(air_sf_project)</span>
-<span id="cb50-7"><a href="#cb50-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb50-8"><a href="#cb50-8" aria-hidden="true" tabindex="-1"></a><span class="co"># Predicted coordinates</span></span>
-<span id="cb50-9"><a href="#cb50-9" aria-hidden="true" tabindex="-1"></a>coop <span class="ot">&lt;-</span> <span class="fu">st_coordinates</span>(dp)</span>
-<span id="cb50-10"><a href="#cb50-10" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(<span class="fu">dist</span>(coo)) <span class="co"># summary of distances between locations</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb24"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a>projMercator<span class="ot">&lt;-</span><span class="st">"+proj=merc +a=6378137 +b=6378137 +lat_ts=0 +lon_0=0</span></span>
+<span id="cb24-2"><a href="#cb24-2" aria-hidden="true" tabindex="-1"></a><span class="st">+x_0=0 +y_0=0 +k=1 +units=km +nadgrids=@null +wktext +no_defs"</span></span>
+<span id="cb24-3"><a href="#cb24-3" aria-hidden="true" tabindex="-1"></a>air_sf_project <span class="ot">&lt;-</span> <span class="fu">st_transform</span>(air_sf, <span class="at">crs =</span> projMercator)</span>
+<span id="cb24-4"><a href="#cb24-4" aria-hidden="true" tabindex="-1"></a>dp <span class="ot">&lt;-</span> <span class="fu">st_transform</span>(dp, <span class="at">crs =</span> projMercator)</span>
+<span id="cb24-5"><a href="#cb24-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Observed coordinates</span></span>
+<span id="cb24-6"><a href="#cb24-6" aria-hidden="true" tabindex="-1"></a>coo <span class="ot">&lt;-</span> <span class="fu">st_coordinates</span>(air_sf_project)</span>
+<span id="cb24-7"><a href="#cb24-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-8"><a href="#cb24-8" aria-hidden="true" tabindex="-1"></a><span class="co"># Predicted coordinates</span></span>
+<span id="cb24-9"><a href="#cb24-9" aria-hidden="true" tabindex="-1"></a>coop <span class="ot">&lt;-</span> <span class="fu">st_coordinates</span>(dp)</span>
+<span id="cb24-10"><a href="#cb24-10" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(<span class="fu">dist</span>(coo)) <span class="co"># summary of distances between locations</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>    Min.  1st Qu.   Median     Mean  3rd Qu.     Max. 
   0.5852  70.0344 109.2560 131.9875 179.8815 472.4047 </code></pre>
@@ -638,13 +502,13 @@ Projected CRS: Amersfoort / RD New</code></pre>
 <p>Mesh options are from <a href="https://punama.github.io/BDI_INLA/#:~:text=stack%20function.,list%20of%20effects%20(effects)." class="uri">https://punama.github.io/BDI_INLA/#:~:text=stack%20function.,list%20of%20effects%20(effects).</a> <code>max.edge</code> controls the largest triangle edge length, and providing it with a vector <code>c(inner, outer)</code> sets the max edge for inside the boundary and outside the boundary. The purpose of this is to avoid boundary effects in the estimation of the model, where boundary values have high variance. Lindgren and Rue (2015) suggest to extend the domain by some amount. This is briefly discussed in the book by Blangiardo (2015).</p>
 <p><code>cutoff</code> is the minimum allowed distance between points. Otherwise, points are replaced by a single vertex. For areas of high clusters of points, this could be useful to reduce redundancy. If no <code>boundary</code> is set the mesh is created on the convex hull of the observations.</p>
 <p>This was inspired from <a href="https://punama.github.io/BDI_INLA/" class="uri">https://punama.github.io/BDI_INLA/</a>. Thanks! ::: {.cell}</p>
-<div class="sourceCode cell-code" id="cb52"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb52-1"><a href="#cb52-1" aria-hidden="true" tabindex="-1"></a>mesh0 <span class="ot">&lt;-</span> <span class="fu">inla.mesh.2d</span>(<span class="at">loc =</span> coo, <span class="at">max.edge=</span><span class="fu">c</span>(<span class="dv">200</span>, <span class="dv">500</span>))</span>
-<span id="cb52-2"><a href="#cb52-2" aria-hidden="true" tabindex="-1"></a>mesh1 <span class="ot">&lt;-</span> <span class="fu">inla.mesh.2d</span>(<span class="at">loc =</span> coo, <span class="at">max.edge=</span><span class="fu">c</span>(<span class="dv">200</span>, <span class="dv">500</span>), <span class="at">cutoff=</span><span class="dv">1</span>)</span>
-<span id="cb52-3"><a href="#cb52-3" aria-hidden="true" tabindex="-1"></a>mesh2 <span class="ot">&lt;-</span> <span class="fu">inla.mesh.2d</span>(<span class="at">loc =</span> coo, <span class="at">max.edge=</span><span class="fu">c</span>(<span class="dv">100</span>, <span class="dv">150</span>), <span class="at">cutoff=</span><span class="dv">1</span>)</span>
-<span id="cb52-4"><a href="#cb52-4" aria-hidden="true" tabindex="-1"></a>mesh3 <span class="ot">&lt;-</span> <span class="fu">inla.mesh.2d</span>(<span class="at">loc =</span> coo, <span class="at">max.edge=</span><span class="fu">c</span>(<span class="dv">100</span>), <span class="at">cutoff=</span><span class="dv">1</span>)</span>
-<span id="cb52-5"><a href="#cb52-5" aria-hidden="true" tabindex="-1"></a>mesh4 <span class="ot">&lt;-</span> <span class="fu">inla.mesh.2d</span>(<span class="at">loc =</span> coo, <span class="at">max.edge=</span><span class="fu">c</span>(<span class="dv">500</span>, <span class="dv">750</span>))</span>
-<span id="cb52-6"><a href="#cb52-6" aria-hidden="true" tabindex="-1"></a>mesh5 <span class="ot">&lt;-</span> <span class="fu">inla.mesh.2d</span>(<span class="at">loc =</span> coo, <span class="at">max.edge=</span><span class="fu">c</span>(<span class="dv">500</span>, <span class="dv">750</span>), <span class="at">cutoff=</span><span class="dv">1</span>)</span>
-<span id="cb52-7"><a href="#cb52-7" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(mesh0)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb26"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a>mesh0 <span class="ot">&lt;-</span> <span class="fu">inla.mesh.2d</span>(<span class="at">loc =</span> coo, <span class="at">max.edge=</span><span class="fu">c</span>(<span class="dv">200</span>, <span class="dv">500</span>))</span>
+<span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a>mesh1 <span class="ot">&lt;-</span> <span class="fu">inla.mesh.2d</span>(<span class="at">loc =</span> coo, <span class="at">max.edge=</span><span class="fu">c</span>(<span class="dv">200</span>, <span class="dv">500</span>), <span class="at">cutoff=</span><span class="dv">1</span>)</span>
+<span id="cb26-3"><a href="#cb26-3" aria-hidden="true" tabindex="-1"></a>mesh2 <span class="ot">&lt;-</span> <span class="fu">inla.mesh.2d</span>(<span class="at">loc =</span> coo, <span class="at">max.edge=</span><span class="fu">c</span>(<span class="dv">100</span>, <span class="dv">150</span>), <span class="at">cutoff=</span><span class="dv">1</span>)</span>
+<span id="cb26-4"><a href="#cb26-4" aria-hidden="true" tabindex="-1"></a>mesh3 <span class="ot">&lt;-</span> <span class="fu">inla.mesh.2d</span>(<span class="at">loc =</span> coo, <span class="at">max.edge=</span><span class="fu">c</span>(<span class="dv">100</span>), <span class="at">cutoff=</span><span class="dv">1</span>)</span>
+<span id="cb26-5"><a href="#cb26-5" aria-hidden="true" tabindex="-1"></a>mesh4 <span class="ot">&lt;-</span> <span class="fu">inla.mesh.2d</span>(<span class="at">loc =</span> coo, <span class="at">max.edge=</span><span class="fu">c</span>(<span class="dv">500</span>, <span class="dv">750</span>))</span>
+<span id="cb26-6"><a href="#cb26-6" aria-hidden="true" tabindex="-1"></a>mesh5 <span class="ot">&lt;-</span> <span class="fu">inla.mesh.2d</span>(<span class="at">loc =</span> coo, <span class="at">max.edge=</span><span class="fu">c</span>(<span class="dv">500</span>, <span class="dv">750</span>), <span class="at">cutoff=</span><span class="dv">1</span>)</span>
+<span id="cb26-7"><a href="#cb26-7" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(mesh0)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output-display">
 <div>
 <figure class="figure">
@@ -652,7 +516,7 @@ Projected CRS: Amersfoort / RD New</code></pre>
 </figure>
 </div>
 </div>
-<div class="sourceCode cell-code" id="cb53"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb53-1"><a href="#cb53-1" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(mesh1)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb27"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(mesh1)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output-display">
 <div>
 <figure class="figure">
@@ -660,7 +524,7 @@ Projected CRS: Amersfoort / RD New</code></pre>
 </figure>
 </div>
 </div>
-<div class="sourceCode cell-code" id="cb54"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb54-1"><a href="#cb54-1" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(mesh2)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb28"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(mesh2)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output-display">
 <div>
 <figure class="figure">
@@ -668,7 +532,7 @@ Projected CRS: Amersfoort / RD New</code></pre>
 </figure>
 </div>
 </div>
-<div class="sourceCode cell-code" id="cb55"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb55-1"><a href="#cb55-1" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(mesh3)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb29"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(mesh3)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output-display">
 <div>
 <figure class="figure">
@@ -676,7 +540,7 @@ Projected CRS: Amersfoort / RD New</code></pre>
 </figure>
 </div>
 </div>
-<div class="sourceCode cell-code" id="cb56"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb56-1"><a href="#cb56-1" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(mesh4)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb30"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(mesh4)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output-display">
 <div>
 <figure class="figure">
@@ -684,7 +548,7 @@ Projected CRS: Amersfoort / RD New</code></pre>
 </figure>
 </div>
 </div>
-<div class="sourceCode cell-code" id="cb57"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb57-1"><a href="#cb57-1" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(mesh5)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb31"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(mesh5)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output-display">
 <div>
 <figure class="figure">
@@ -692,17 +556,17 @@ Projected CRS: Amersfoort / RD New</code></pre>
 </figure>
 </div>
 </div>
-<div class="sourceCode cell-code" id="cb58"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb58-1"><a href="#cb58-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Using mesh0</span></span>
-<span id="cb58-2"><a href="#cb58-2" aria-hidden="true" tabindex="-1"></a>mesh <span class="ot">&lt;-</span><span class="fu">inla.mesh.2d</span>(<span class="at">loc =</span> coo, <span class="at">max.edge=</span><span class="fu">c</span>(<span class="dv">200</span>, <span class="dv">500</span>), <span class="at">crs=</span><span class="fu">st_crs</span>(air_sf_project))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb32"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb32-1"><a href="#cb32-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Using mesh0</span></span>
+<span id="cb32-2"><a href="#cb32-2" aria-hidden="true" tabindex="-1"></a>mesh <span class="ot">&lt;-</span><span class="fu">inla.mesh.2d</span>(<span class="at">loc =</span> coo, <span class="at">max.edge=</span><span class="fu">c</span>(<span class="dv">200</span>, <span class="dv">500</span>), <span class="at">crs=</span><span class="fu">st_crs</span>(air_sf_project))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <p>:::</p>
 <p>Next we construct the A matrix that “A that projects the GRF from the observations to the vertices of the triangulated mesh.” (Moraga 2024). This A matrix has a row for each ovservation, and columns equal to the number of vertices in the mesh. That is shown above, with <code>mesh$n</code>. Below, two different meshes are generated. One for the observation locations, and one for the prediction locations. We need to set these both at once, because to make predictions in INLA we have to have that all pre-specified, unlike with the typical modelling style in R.</p>
 <p>Additionally, the index allows us to extract fitted values from the model.</p>
 <p>The smoothness parameter is set to 1, where in the spatial case <span class="math inline">\(d=2\)</span> and <span class="math inline">\(\alpha=\nu + d/2 = 2\)</span>, seen in the code below.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb59"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb59-1"><a href="#cb59-1" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(mesh)</span>
-<span id="cb59-2"><a href="#cb59-2" aria-hidden="true" tabindex="-1"></a><span class="fu">points</span>(coo, <span class="at">col =</span> <span class="st">"red"</span>)</span>
-<span id="cb59-3"><a href="#cb59-3" aria-hidden="true" tabindex="-1"></a><span class="fu">axis</span>(<span class="dv">1</span>)</span>
-<span id="cb59-4"><a href="#cb59-4" aria-hidden="true" tabindex="-1"></a><span class="fu">axis</span>(<span class="dv">2</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb33"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb33-1"><a href="#cb33-1" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(mesh)</span>
+<span id="cb33-2"><a href="#cb33-2" aria-hidden="true" tabindex="-1"></a><span class="fu">points</span>(coo, <span class="at">col =</span> <span class="st">"red"</span>)</span>
+<span id="cb33-3"><a href="#cb33-3" aria-hidden="true" tabindex="-1"></a><span class="fu">axis</span>(<span class="dv">1</span>)</span>
+<span id="cb33-4"><a href="#cb33-4" aria-hidden="true" tabindex="-1"></a><span class="fu">axis</span>(<span class="dv">2</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output-display">
 <div>
 <figure class="figure">
@@ -710,63 +574,61 @@ Projected CRS: Amersfoort / RD New</code></pre>
 </figure>
 </div>
 </div>
-<div class="sourceCode cell-code" id="cb60"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb60-1"><a href="#cb60-1" aria-hidden="true" tabindex="-1"></a>spde <span class="ot">&lt;-</span> <span class="fu">inla.spde2.matern</span>(<span class="at">mesh =</span> mesh, <span class="at">alpha =</span> <span class="dv">2</span>, <span class="at">constr =</span> <span class="cn">TRUE</span>)</span>
-<span id="cb60-2"><a href="#cb60-2" aria-hidden="true" tabindex="-1"></a>indexs <span class="ot">&lt;-</span> <span class="fu">inla.spde.make.index</span>(<span class="st">"s"</span>, spde<span class="sc">$</span>n.spde)</span>
-<span id="cb60-3"><a href="#cb60-3" aria-hidden="true" tabindex="-1"></a><span class="fu">lengths</span>(indexs)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb34"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb34-1"><a href="#cb34-1" aria-hidden="true" tabindex="-1"></a>spde <span class="ot">&lt;-</span> <span class="fu">inla.spde2.matern</span>(<span class="at">mesh =</span> mesh, <span class="at">alpha =</span> <span class="dv">2</span>, <span class="at">constr =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb34-2"><a href="#cb34-2" aria-hidden="true" tabindex="-1"></a>indexs <span class="ot">&lt;-</span> <span class="fu">inla.spde.make.index</span>(<span class="st">"s"</span>, spde<span class="sc">$</span>n.spde)</span>
+<span id="cb34-3"><a href="#cb34-3" aria-hidden="true" tabindex="-1"></a><span class="fu">lengths</span>(indexs)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>      s s.group  s.repl 
     280     280     280 </code></pre>
 </div>
-<div class="sourceCode cell-code" id="cb62"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb62-1"><a href="#cb62-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Make the projection matrices</span></span>
-<span id="cb62-2"><a href="#cb62-2" aria-hidden="true" tabindex="-1"></a>A <span class="ot">&lt;-</span> <span class="fu">inla.spde.make.A</span>(<span class="at">mesh =</span> mesh, <span class="at">loc =</span> coo)</span>
-<span id="cb62-3"><a href="#cb62-3" aria-hidden="true" tabindex="-1"></a>Ap <span class="ot">&lt;-</span> <span class="fu">inla.spde.make.A</span>(<span class="at">mesh =</span> mesh, <span class="at">loc =</span> coop)</span>
-<span id="cb62-4"><a href="#cb62-4" aria-hidden="true" tabindex="-1"></a><span class="fu">dim</span>(A)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb36"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb36-1"><a href="#cb36-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Make the projection matrices</span></span>
+<span id="cb36-2"><a href="#cb36-2" aria-hidden="true" tabindex="-1"></a>A <span class="ot">&lt;-</span> <span class="fu">inla.spde.make.A</span>(<span class="at">mesh =</span> mesh, <span class="at">loc =</span> coo)</span>
+<span id="cb36-3"><a href="#cb36-3" aria-hidden="true" tabindex="-1"></a>Ap <span class="ot">&lt;-</span> <span class="fu">inla.spde.make.A</span>(<span class="at">mesh =</span> mesh, <span class="at">loc =</span> coop)</span>
+<span id="cb36-4"><a href="#cb36-4" aria-hidden="true" tabindex="-1"></a><span class="fu">dim</span>(A)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>[1]  52 280</code></pre>
 </div>
-<div class="sourceCode cell-code" id="cb64"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb64-1"><a href="#cb64-1" aria-hidden="true" tabindex="-1"></a><span class="fu">dim</span>(Ap)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb38"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb38-1"><a href="#cb38-1" aria-hidden="true" tabindex="-1"></a><span class="fu">dim</span>(Ap)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>[1] 4944  280</code></pre>
 </div>
 </div>
 <p>Then we have to make the INLA stack. This is done because we need to combine the data for estimation with the prediction data, as well as the projection matrices. It contains the response data, the list of covariate data–here the temperature and precipitation–the projection matrices, and the indices.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb66"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb66-1"><a href="#cb66-1" aria-hidden="true" tabindex="-1"></a><span class="co"># stack for estimation stk.e</span></span>
-<span id="cb66-2"><a href="#cb66-2" aria-hidden="true" tabindex="-1"></a>stk.e <span class="ot">&lt;-</span> <span class="fu">inla.stack</span>(<span class="at">tag =</span> <span class="st">"est"</span>,</span>
-<span id="cb66-3"><a href="#cb66-3" aria-hidden="true" tabindex="-1"></a><span class="at">data =</span> <span class="fu">list</span>(<span class="at">y =</span> air_sf_project<span class="sc">$</span>Value), <span class="at">A =</span> <span class="fu">list</span>(<span class="dv">1</span>, A),</span>
-<span id="cb66-4"><a href="#cb66-4" aria-hidden="true" tabindex="-1"></a><span class="at">effects =</span> <span class="fu">list</span>(<span class="fu">data.frame</span>(<span class="at">b0 =</span> <span class="fu">rep</span>(<span class="dv">1</span>, <span class="fu">nrow</span>(A)),</span>
-<span id="cb66-5"><a href="#cb66-5" aria-hidden="true" tabindex="-1"></a><span class="at">covtemp =</span> air_sf_project<span class="sc">$</span>covtemp, <span class="at">covprec =</span> air_sf_project<span class="sc">$</span>covprec),</span>
-<span id="cb66-6"><a href="#cb66-6" aria-hidden="true" tabindex="-1"></a><span class="at">s =</span> indexs))</span>
-<span id="cb66-7"><a href="#cb66-7" aria-hidden="true" tabindex="-1"></a><span class="co">#stk.e</span></span>
-<span id="cb66-8"><a href="#cb66-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb66-9"><a href="#cb66-9" aria-hidden="true" tabindex="-1"></a><span class="co"># stack for prediction stk.p</span></span>
-<span id="cb66-10"><a href="#cb66-10" aria-hidden="true" tabindex="-1"></a>stk.p <span class="ot">&lt;-</span> <span class="fu">inla.stack</span>(<span class="at">tag =</span> <span class="st">"pred"</span>,</span>
-<span id="cb66-11"><a href="#cb66-11" aria-hidden="true" tabindex="-1"></a><span class="at">data =</span> <span class="fu">list</span>(<span class="at">y =</span> <span class="cn">NA</span>), <span class="at">A =</span> <span class="fu">list</span>(<span class="dv">1</span>, Ap),</span>
-<span id="cb66-12"><a href="#cb66-12" aria-hidden="true" tabindex="-1"></a><span class="at">effects =</span> <span class="fu">list</span>(<span class="fu">data.frame</span>(<span class="at">b0 =</span> <span class="fu">rep</span>(<span class="dv">1</span>, <span class="fu">nrow</span>(Ap)),</span>
-<span id="cb66-13"><a href="#cb66-13" aria-hidden="true" tabindex="-1"></a><span class="at">covtemp =</span> dp<span class="sc">$</span>covtemp, <span class="at">covprec =</span> dp<span class="sc">$</span>covprec),</span>
-<span id="cb66-14"><a href="#cb66-14" aria-hidden="true" tabindex="-1"></a><span class="at">s =</span> indexs))</span>
-<span id="cb66-15"><a href="#cb66-15" aria-hidden="true" tabindex="-1"></a><span class="co">#stk.p</span></span>
-<span id="cb66-16"><a href="#cb66-16" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb66-17"><a href="#cb66-17" aria-hidden="true" tabindex="-1"></a><span class="co"># stk.full has stk.e and stk.p</span></span>
-<span id="cb66-18"><a href="#cb66-18" aria-hidden="true" tabindex="-1"></a>stk.full <span class="ot">&lt;-</span> <span class="fu">inla.stack</span>(stk.e, stk.p)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb40"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb40-1"><a href="#cb40-1" aria-hidden="true" tabindex="-1"></a><span class="co"># stack for estimation stk.e</span></span>
+<span id="cb40-2"><a href="#cb40-2" aria-hidden="true" tabindex="-1"></a>stk.e <span class="ot">&lt;-</span> <span class="fu">inla.stack</span>(<span class="at">tag =</span> <span class="st">"est"</span>,</span>
+<span id="cb40-3"><a href="#cb40-3" aria-hidden="true" tabindex="-1"></a><span class="at">data =</span> <span class="fu">list</span>(<span class="at">y =</span> air_sf_project<span class="sc">$</span>Value), <span class="at">A =</span> <span class="fu">list</span>(<span class="dv">1</span>, A),</span>
+<span id="cb40-4"><a href="#cb40-4" aria-hidden="true" tabindex="-1"></a><span class="at">effects =</span> <span class="fu">list</span>(<span class="fu">data.frame</span>(<span class="at">b0 =</span> <span class="fu">rep</span>(<span class="dv">1</span>, <span class="fu">nrow</span>(A)),</span>
+<span id="cb40-5"><a href="#cb40-5" aria-hidden="true" tabindex="-1"></a><span class="at">covtemp =</span> air_sf_project<span class="sc">$</span>covtemp, <span class="at">covprec =</span> air_sf_project<span class="sc">$</span>covprec),</span>
+<span id="cb40-6"><a href="#cb40-6" aria-hidden="true" tabindex="-1"></a><span class="at">s =</span> indexs))</span>
+<span id="cb40-7"><a href="#cb40-7" aria-hidden="true" tabindex="-1"></a><span class="co">#stk.e</span></span>
+<span id="cb40-8"><a href="#cb40-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-9"><a href="#cb40-9" aria-hidden="true" tabindex="-1"></a><span class="co"># stack for prediction stk.p</span></span>
+<span id="cb40-10"><a href="#cb40-10" aria-hidden="true" tabindex="-1"></a>stk.p <span class="ot">&lt;-</span> <span class="fu">inla.stack</span>(<span class="at">tag =</span> <span class="st">"pred"</span>,</span>
+<span id="cb40-11"><a href="#cb40-11" aria-hidden="true" tabindex="-1"></a><span class="at">data =</span> <span class="fu">list</span>(<span class="at">y =</span> <span class="cn">NA</span>), <span class="at">A =</span> <span class="fu">list</span>(<span class="dv">1</span>, Ap),</span>
+<span id="cb40-12"><a href="#cb40-12" aria-hidden="true" tabindex="-1"></a><span class="at">effects =</span> <span class="fu">list</span>(<span class="fu">data.frame</span>(<span class="at">b0 =</span> <span class="fu">rep</span>(<span class="dv">1</span>, <span class="fu">nrow</span>(Ap)),</span>
+<span id="cb40-13"><a href="#cb40-13" aria-hidden="true" tabindex="-1"></a><span class="at">covtemp =</span> dp<span class="sc">$</span>covtemp, <span class="at">covprec =</span> dp<span class="sc">$</span>covprec),</span>
+<span id="cb40-14"><a href="#cb40-14" aria-hidden="true" tabindex="-1"></a><span class="at">s =</span> indexs))</span>
+<span id="cb40-15"><a href="#cb40-15" aria-hidden="true" tabindex="-1"></a><span class="co">#stk.p</span></span>
+<span id="cb40-16"><a href="#cb40-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-17"><a href="#cb40-17" aria-hidden="true" tabindex="-1"></a><span class="co"># stk.full has stk.e and stk.p</span></span>
+<span id="cb40-18"><a href="#cb40-18" aria-hidden="true" tabindex="-1"></a>stk.full <span class="ot">&lt;-</span> <span class="fu">inla.stack</span>(stk.e, stk.p)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p>Finally, we can specify the model in INLA. All the hard work has been done above and at least the model specification in INLA is easier. This model has mean specified by <span class="math display">\[
 \mu_i = \beta_0 + \beta_1 \times \text{temp}_i + \beta_2 \times \text{prec}_i + S(x_i),
 \]</span> so there is some contribution from fixed effects as well as a unknown latent process modelled as a zero-mean Gaussian Random Field with Matern covariance function. This puts us well within INLA territory. The model equation can be seen quite clearly in the <code>formula</code> variable below.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb67"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb67-1"><a href="#cb67-1" aria-hidden="true" tabindex="-1"></a>formula <span class="ot">&lt;-</span> y <span class="sc">~</span> <span class="dv">0</span> <span class="sc">+</span> b0 <span class="sc">+</span> covtemp <span class="sc">+</span> covprec <span class="sc">+</span> <span class="fu">f</span>(s, <span class="at">model =</span> spde)</span>
-<span id="cb67-2"><a href="#cb67-2" aria-hidden="true" tabindex="-1"></a>res <span class="ot">&lt;-</span> <span class="fu">inla</span>(formula, <span class="at">family =</span> <span class="st">"gaussian"</span>,</span>
-<span id="cb67-3"><a href="#cb67-3" aria-hidden="true" tabindex="-1"></a>       <span class="at">data =</span> <span class="fu">inla.stack.data</span>(stk.full),</span>
-<span id="cb67-4"><a href="#cb67-4" aria-hidden="true" tabindex="-1"></a>       <span class="at">control.predictor =</span> <span class="fu">list</span>(<span class="at">compute =</span> <span class="cn">TRUE</span>,</span>
-<span id="cb67-5"><a href="#cb67-5" aria-hidden="true" tabindex="-1"></a>                                <span class="at">A =</span> <span class="fu">inla.stack.A</span>(stk.full)),</span>
-<span id="cb67-6"><a href="#cb67-6" aria-hidden="true" tabindex="-1"></a>       <span class="at">control.compute =</span> <span class="fu">list</span>(<span class="at">return.marginals.predictor =</span> <span class="cn">TRUE</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb41"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb41-1"><a href="#cb41-1" aria-hidden="true" tabindex="-1"></a>formula <span class="ot">&lt;-</span> y <span class="sc">~</span> <span class="dv">0</span> <span class="sc">+</span> b0 <span class="sc">+</span> covtemp <span class="sc">+</span> covprec <span class="sc">+</span> <span class="fu">f</span>(s, <span class="at">model =</span> spde)</span>
+<span id="cb41-2"><a href="#cb41-2" aria-hidden="true" tabindex="-1"></a>res <span class="ot">&lt;-</span> <span class="fu">inla</span>(formula, <span class="at">family =</span> <span class="st">"gaussian"</span>,</span>
+<span id="cb41-3"><a href="#cb41-3" aria-hidden="true" tabindex="-1"></a>       <span class="at">data =</span> <span class="fu">inla.stack.data</span>(stk.full),</span>
+<span id="cb41-4"><a href="#cb41-4" aria-hidden="true" tabindex="-1"></a>       <span class="at">control.predictor =</span> <span class="fu">list</span>(<span class="at">compute =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb41-5"><a href="#cb41-5" aria-hidden="true" tabindex="-1"></a>                                <span class="at">A =</span> <span class="fu">inla.stack.A</span>(stk.full)),</span>
+<span id="cb41-6"><a href="#cb41-6" aria-hidden="true" tabindex="-1"></a>       <span class="at">control.compute =</span> <span class="fu">list</span>(<span class="at">return.marginals.predictor =</span> <span class="cn">TRUE</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p>Notice that I am passing a few options to the <code>inla</code> call. Importantly, <code>control.compute</code>. We have a nice description of the control options at <a href="https://becarioprecario.bitbucket.io/inla-gitbook/ch-INLA.html#sec:controlops" class="uri">https://becarioprecario.bitbucket.io/inla-gitbook/ch-INLA.html#sec:controlops</a>. It controls what quantities are actually computed and returned during the INLA estimation. For example, there are a few different information criteria that it can return.</p>
-<p><code>control.predictor</code> will compute the posterior marginals of the parameters.</p>
-<p>The options: ::: {.cell}</p>
-<div class="sourceCode cell-code" id="cb68"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb68-1"><a href="#cb68-1" aria-hidden="true" tabindex="-1"></a><span class="fu">inla.set.control.compute.default</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<p>::: Once the model is fit, we can inspect the fixed parameters and estimated latent field, as well as the hyperparameters for the latent field. ::: {.cell}</p>
-<div class="sourceCode cell-code" id="cb69"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb69-1"><a href="#cb69-1" aria-hidden="true" tabindex="-1"></a>res<span class="sc">$</span>summary.fixed</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p><code>control.predictor</code> will compute the posterior marginals of the parameters. All the options can be seen with the command <code>inla.set.control.compute.default()</code></p>
+<p>Once the model is fit, we can inspect the fixed parameters and estimated latent field, as well as the hyperparameters for the latent field. ::: {.cell}</p>
+<div class="sourceCode cell-code" id="cb42"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb42-1"><a href="#cb42-1" aria-hidden="true" tabindex="-1"></a>res<span class="sc">$</span>summary.fixed</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>                mean         sd  0.025quant     0.5quant 0.975quant
 b0      -15.29769449 21.3472624 -57.7595559 -15.17245556 26.4583704
@@ -777,31 +639,31 @@ b0      -15.17140288 4.819848e-08
 covtemp   2.09359434 3.231952e-07
 covprec  -0.01411427 5.717319e-08</code></pre>
 </div>
-<div class="sourceCode cell-code" id="cb71"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb71-1"><a href="#cb71-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Latent field is here</span></span>
-<span id="cb71-2"><a href="#cb71-2" aria-hidden="true" tabindex="-1"></a><span class="co"># res$summary.random$s</span></span>
-<span id="cb71-3"><a href="#cb71-3" aria-hidden="true" tabindex="-1"></a><span class="co"># res$summary.hyperpar</span></span>
-<span id="cb71-4"><a href="#cb71-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb71-5"><a href="#cb71-5" aria-hidden="true" tabindex="-1"></a>index <span class="ot">&lt;-</span> <span class="fu">inla.stack.index</span>(<span class="at">stack =</span> stk.full, <span class="at">tag =</span> <span class="st">"pred"</span>)<span class="sc">$</span>data</span>
-<span id="cb71-6"><a href="#cb71-6" aria-hidden="true" tabindex="-1"></a>pred_mean <span class="ot">&lt;-</span> res<span class="sc">$</span>summary.fitted.values[index, <span class="st">"mean"</span>]</span>
-<span id="cb71-7"><a href="#cb71-7" aria-hidden="true" tabindex="-1"></a>pred_ll <span class="ot">&lt;-</span> res<span class="sc">$</span>summary.fitted.values[index, <span class="st">"0.025quant"</span>]</span>
-<span id="cb71-8"><a href="#cb71-8" aria-hidden="true" tabindex="-1"></a>pred_ul <span class="ot">&lt;-</span> res<span class="sc">$</span>summary.fitted.values[index, <span class="st">"0.975quant"</span>]</span>
-<span id="cb71-9"><a href="#cb71-9" aria-hidden="true" tabindex="-1"></a>grid<span class="sc">$</span>mean <span class="ot">&lt;-</span> <span class="cn">NA</span></span>
-<span id="cb71-10"><a href="#cb71-10" aria-hidden="true" tabindex="-1"></a>grid<span class="sc">$</span>ll <span class="ot">&lt;-</span> <span class="cn">NA</span></span>
-<span id="cb71-11"><a href="#cb71-11" aria-hidden="true" tabindex="-1"></a>grid<span class="sc">$</span>ul <span class="ot">&lt;-</span> <span class="cn">NA</span></span>
-<span id="cb71-12"><a href="#cb71-12" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb71-13"><a href="#cb71-13" aria-hidden="true" tabindex="-1"></a><span class="fu">length</span>(pred_mean)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb44"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb44-1"><a href="#cb44-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Latent field is here</span></span>
+<span id="cb44-2"><a href="#cb44-2" aria-hidden="true" tabindex="-1"></a><span class="co"># res$summary.random$s</span></span>
+<span id="cb44-3"><a href="#cb44-3" aria-hidden="true" tabindex="-1"></a><span class="co"># res$summary.hyperpar</span></span>
+<span id="cb44-4"><a href="#cb44-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb44-5"><a href="#cb44-5" aria-hidden="true" tabindex="-1"></a>index <span class="ot">&lt;-</span> <span class="fu">inla.stack.index</span>(<span class="at">stack =</span> stk.full, <span class="at">tag =</span> <span class="st">"pred"</span>)<span class="sc">$</span>data</span>
+<span id="cb44-6"><a href="#cb44-6" aria-hidden="true" tabindex="-1"></a>pred_mean <span class="ot">&lt;-</span> res<span class="sc">$</span>summary.fitted.values[index, <span class="st">"mean"</span>]</span>
+<span id="cb44-7"><a href="#cb44-7" aria-hidden="true" tabindex="-1"></a>pred_ll <span class="ot">&lt;-</span> res<span class="sc">$</span>summary.fitted.values[index, <span class="st">"0.025quant"</span>]</span>
+<span id="cb44-8"><a href="#cb44-8" aria-hidden="true" tabindex="-1"></a>pred_ul <span class="ot">&lt;-</span> res<span class="sc">$</span>summary.fitted.values[index, <span class="st">"0.975quant"</span>]</span>
+<span id="cb44-9"><a href="#cb44-9" aria-hidden="true" tabindex="-1"></a>grid<span class="sc">$</span>mean <span class="ot">&lt;-</span> <span class="cn">NA</span></span>
+<span id="cb44-10"><a href="#cb44-10" aria-hidden="true" tabindex="-1"></a>grid<span class="sc">$</span>ll <span class="ot">&lt;-</span> <span class="cn">NA</span></span>
+<span id="cb44-11"><a href="#cb44-11" aria-hidden="true" tabindex="-1"></a>grid<span class="sc">$</span>ul <span class="ot">&lt;-</span> <span class="cn">NA</span></span>
+<span id="cb44-12"><a href="#cb44-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb44-13"><a href="#cb44-13" aria-hidden="true" tabindex="-1"></a><span class="fu">length</span>(pred_mean)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>[1] 4944</code></pre>
 </div>
-<div class="sourceCode cell-code" id="cb73"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb73-1"><a href="#cb73-1" aria-hidden="true" tabindex="-1"></a><span class="fu">length</span>(indicespointswithin)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb46"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb46-1"><a href="#cb46-1" aria-hidden="true" tabindex="-1"></a><span class="fu">length</span>(indicespointswithin)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>[1] 4944</code></pre>
 </div>
-<div class="sourceCode cell-code" id="cb75"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb75-1"><a href="#cb75-1" aria-hidden="true" tabindex="-1"></a>grid<span class="sc">$</span>mean[indicespointswithin] <span class="ot">&lt;-</span> pred_mean</span>
-<span id="cb75-2"><a href="#cb75-2" aria-hidden="true" tabindex="-1"></a>grid<span class="sc">$</span>ll[indicespointswithin] <span class="ot">&lt;-</span> pred_ll</span>
-<span id="cb75-3"><a href="#cb75-3" aria-hidden="true" tabindex="-1"></a>grid<span class="sc">$</span>ul[indicespointswithin] <span class="ot">&lt;-</span> pred_ul</span>
-<span id="cb75-4"><a href="#cb75-4" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb75-5"><a href="#cb75-5" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(grid) <span class="co"># negative values for the lower limit</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb48"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb48-1"><a href="#cb48-1" aria-hidden="true" tabindex="-1"></a>grid<span class="sc">$</span>mean[indicespointswithin] <span class="ot">&lt;-</span> pred_mean</span>
+<span id="cb48-2"><a href="#cb48-2" aria-hidden="true" tabindex="-1"></a>grid<span class="sc">$</span>ll[indicespointswithin] <span class="ot">&lt;-</span> pred_ll</span>
+<span id="cb48-3"><a href="#cb48-3" aria-hidden="true" tabindex="-1"></a>grid<span class="sc">$</span>ul[indicespointswithin] <span class="ot">&lt;-</span> pred_ul</span>
+<span id="cb48-4"><a href="#cb48-4" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb48-5"><a href="#cb48-5" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(grid) <span class="co"># negative values for the lower limit</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>      mean             ll               ul        
  Min.   :1.338   Min.   :-4.722   Min.   : 3.733  
@@ -812,12 +674,12 @@ covprec  -0.01411427 5.717319e-08</code></pre>
  Max.   :8.316   Max.   : 6.753   Max.   :12.860  
  NA's   :5056    NA's   :5056     NA's   :5056    </code></pre>
 </div>
-<div class="sourceCode cell-code" id="cb77"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb77-1"><a href="#cb77-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(rasterVis)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb50"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb50-1"><a href="#cb50-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(rasterVis)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stderr">
 <pre><code>Loading required package: lattice</code></pre>
 </div>
-<div class="sourceCode cell-code" id="cb79"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb79-1"><a href="#cb79-1" aria-hidden="true" tabindex="-1"></a><span class="fu">levelplot</span>(grid, <span class="at">layout =</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">3</span>),</span>
-<span id="cb79-2"><a href="#cb79-2" aria-hidden="true" tabindex="-1"></a><span class="at">names.attr =</span> <span class="fu">c</span>(<span class="st">"Mean"</span>, <span class="st">"2.5 percentile"</span>, <span class="st">"97.5 percentile"</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb52"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb52-1"><a href="#cb52-1" aria-hidden="true" tabindex="-1"></a><span class="fu">levelplot</span>(grid, <span class="at">layout =</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">3</span>),</span>
+<span id="cb52-2"><a href="#cb52-2" aria-hidden="true" tabindex="-1"></a><span class="at">names.attr =</span> <span class="fu">c</span>(<span class="st">"Mean"</span>, <span class="st">"2.5 percentile"</span>, <span class="st">"97.5 percentile"</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output-display">
 <div>
 <figure class="figure">
@@ -827,42 +689,46 @@ covprec  -0.01411427 5.717319e-08</code></pre>
 </div>
 <p>:::</p>
 <p>When <code>compute=TRUE</code> in <code>control.predictor</code>, we can also obtain the output below. <a href="https://www.paulamoraga.com/book-geospatial/sec-inla.html" class="uri">https://www.paulamoraga.com/book-geospatial/sec-inla.html</a> is good for info about this. ::: {.cell}</p>
-<div class="sourceCode cell-code" id="cb80"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb80-1"><a href="#cb80-1" aria-hidden="true" tabindex="-1"></a>res<span class="sc">$</span>summary.fitted.values</span>
-<span id="cb80-2"><a href="#cb80-2" aria-hidden="true" tabindex="-1"></a>res<span class="sc">$</span>summary.linear.predictor</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb53"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb53-1"><a href="#cb53-1" aria-hidden="true" tabindex="-1"></a>res<span class="sc">$</span>summary.fitted.values</span>
+<span id="cb53-2"><a href="#cb53-2" aria-hidden="true" tabindex="-1"></a>res<span class="sc">$</span>summary.linear.predictor</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <p>::: as well as <code>marginals.linear.predictor</code> and <code>marginals.fitted.values</code>.</p>
 <p>From <a href="https://becarioprecario.bitbucket.io/inla-gitbook/ch-INLA.html#model-fitting-strategies" class="uri">https://becarioprecario.bitbucket.io/inla-gitbook/ch-INLA.html#model-fitting-strategies</a> we can also see the differences using the different fitting strategies, set by the <code>control.inla</code> argument.</p>
 <p>We can change both the Gaussian approximation strategy for the posterior full conditional distributions, as well as the integration strategy used to integrate out the <span class="math inline">\(\theta_{-k}\)</span> parameters to get the marginal distribution for <span class="math inline">\(\theta_k\)</span>.</p>
 <p>The <code>"grid"</code> option is the most costly, compared to the central composite design (<code>"ccd"</code>). In the empirical bayes option (<code>"eb"</code>), the posterior mode is used as the integration point.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb81"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb81-1"><a href="#cb81-1" aria-hidden="true" tabindex="-1"></a>approx_strategy <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"gaussian"</span>, <span class="st">"simplified.laplace"</span>, <span class="st">"laplace"</span>)</span>
-<span id="cb81-2"><a href="#cb81-2" aria-hidden="true" tabindex="-1"></a>int_strategy <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"ccd"</span>, <span class="st">"grid"</span>, <span class="st">"eb"</span>)</span>
-<span id="cb81-3"><a href="#cb81-3" aria-hidden="true" tabindex="-1"></a>models <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"iid"</span>, <span class="st">"matern"</span>)</span>
-<span id="cb81-4"><a href="#cb81-4" aria-hidden="true" tabindex="-1"></a>fits <span class="ot">&lt;-</span> <span class="fu">matrix</span>(<span class="at">nrow=</span><span class="fu">length</span>(approx_strategy)<span class="sc">*</span><span class="fu">length</span>(int_strategy)<span class="sc">*</span><span class="fu">length</span>(models), <span class="at">ncol=</span><span class="dv">3</span>)</span>
-<span id="cb81-5"><a href="#cb81-5" aria-hidden="true" tabindex="-1"></a>fits_marginals <span class="ot">&lt;-</span> <span class="fu">vector</span>(<span class="at">mode=</span><span class="st">"list"</span>, <span class="at">length=</span><span class="fu">length</span>(approx_strategy)<span class="sc">*</span><span class="fu">length</span>(int_strategy)<span class="sc">*</span><span class="fu">length</span>(models))</span>
-<span id="cb81-6"><a href="#cb81-6" aria-hidden="true" tabindex="-1"></a>index_f <span class="ot">&lt;-</span> <span class="dv">0</span></span>
-<span id="cb81-7"><a href="#cb81-7" aria-hidden="true" tabindex="-1"></a>model_names <span class="ot">&lt;-</span> <span class="fu">c</span>()</span>
-<span id="cb81-8"><a href="#cb81-8" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (m <span class="cf">in</span> models){</span>
-<span id="cb81-9"><a href="#cb81-9" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span>(a <span class="cf">in</span> approx_strategy){</span>
-<span id="cb81-10"><a href="#cb81-10" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> (i <span class="cf">in</span> int_strategy){</span>
-<span id="cb81-11"><a href="#cb81-11" aria-hidden="true" tabindex="-1"></a>      index_f <span class="ot">&lt;-</span> index_f <span class="sc">+</span> <span class="dv">1</span></span>
-<span id="cb81-12"><a href="#cb81-12" aria-hidden="true" tabindex="-1"></a>      <span class="cf">if</span> (m<span class="sc">==</span><span class="st">"matern"</span>){</span>
-<span id="cb81-13"><a href="#cb81-13" aria-hidden="true" tabindex="-1"></a>        formula_approx <span class="ot">&lt;-</span> y <span class="sc">~</span> <span class="dv">0</span> <span class="sc">+</span> b0 <span class="sc">+</span> covtemp <span class="sc">+</span> covprec <span class="sc">+</span> <span class="fu">f</span>(s, <span class="at">model =</span> spde)</span>
-<span id="cb81-14"><a href="#cb81-14" aria-hidden="true" tabindex="-1"></a>      }</span>
-<span id="cb81-15"><a href="#cb81-15" aria-hidden="true" tabindex="-1"></a>      <span class="cf">else</span>{</span>
-<span id="cb81-16"><a href="#cb81-16" aria-hidden="true" tabindex="-1"></a>        formula_approx <span class="ot">&lt;-</span> y <span class="sc">~</span> <span class="dv">0</span> <span class="sc">+</span> b0 <span class="sc">+</span> covtemp <span class="sc">+</span> covprec <span class="sc">+</span> <span class="fu">f</span>(s, <span class="at">model =</span> <span class="st">"iid"</span>)</span>
-<span id="cb81-17"><a href="#cb81-17" aria-hidden="true" tabindex="-1"></a>      }</span>
-<span id="cb81-18"><a href="#cb81-18" aria-hidden="true" tabindex="-1"></a>      <span class="fu">print</span>(<span class="fu">paste</span>(a, <span class="st">", "</span>, i, <span class="st">", "</span>, m))</span>
-<span id="cb81-19"><a href="#cb81-19" aria-hidden="true" tabindex="-1"></a>      model_names <span class="ot">&lt;-</span> <span class="fu">c</span>(model_names, <span class="fu">paste</span>(a, <span class="st">", "</span>, i, <span class="st">", "</span>, m))</span>
-<span id="cb81-20"><a href="#cb81-20" aria-hidden="true" tabindex="-1"></a>      fit_approx <span class="ot">&lt;-</span> <span class="fu">inla</span>(formula, <span class="at">family =</span> <span class="st">"gaussian"</span>,</span>
-<span id="cb81-21"><a href="#cb81-21" aria-hidden="true" tabindex="-1"></a>         <span class="at">data =</span> <span class="fu">inla.stack.data</span>(stk.full),</span>
-<span id="cb81-22"><a href="#cb81-22" aria-hidden="true" tabindex="-1"></a>         <span class="at">control.inla =</span> <span class="fu">list</span>(<span class="at">strategy =</span> a, <span class="at">int.strategy =</span> i),</span>
-<span id="cb81-23"><a href="#cb81-23" aria-hidden="true" tabindex="-1"></a>         <span class="at">control.compute =</span> <span class="fu">list</span>(<span class="at">cpo =</span> <span class="cn">TRUE</span>, <span class="at">dic =</span> <span class="cn">TRUE</span>, <span class="at">waic =</span> <span class="cn">TRUE</span>),</span>
-<span id="cb81-24"><a href="#cb81-24" aria-hidden="true" tabindex="-1"></a>         <span class="at">control.predictor =</span> <span class="fu">list</span>(<span class="at">compute =</span> <span class="cn">TRUE</span>, <span class="at">A =</span> <span class="fu">inla.stack.A</span>(stk.full)))</span>
-<span id="cb81-25"><a href="#cb81-25" aria-hidden="true" tabindex="-1"></a>      fits[index_f,] <span class="ot">&lt;-</span> fit_approx<span class="sc">$</span>summary.fixed<span class="sc">$</span>mean</span>
-<span id="cb81-26"><a href="#cb81-26" aria-hidden="true" tabindex="-1"></a>      fits_marginals[[index_f]] <span class="ot">&lt;-</span> fit_approx<span class="sc">$</span>marginals.fixed<span class="sc">$</span>b0</span>
-<span id="cb81-27"><a href="#cb81-27" aria-hidden="true" tabindex="-1"></a>  }</span>
-<span id="cb81-28"><a href="#cb81-28" aria-hidden="true" tabindex="-1"></a>  }</span>
-<span id="cb81-29"><a href="#cb81-29" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb54"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb54-1"><a href="#cb54-1" aria-hidden="true" tabindex="-1"></a>approx_strategy <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"gaussian"</span>, <span class="st">"simplified.laplace"</span>, <span class="st">"laplace"</span>)</span>
+<span id="cb54-2"><a href="#cb54-2" aria-hidden="true" tabindex="-1"></a>int_strategy <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"ccd"</span>, <span class="st">"grid"</span>, <span class="st">"eb"</span>)</span>
+<span id="cb54-3"><a href="#cb54-3" aria-hidden="true" tabindex="-1"></a>models <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"iid"</span>, <span class="st">"matern"</span>)</span>
+<span id="cb54-4"><a href="#cb54-4" aria-hidden="true" tabindex="-1"></a>fits <span class="ot">&lt;-</span> <span class="fu">matrix</span>(<span class="at">nrow=</span><span class="fu">length</span>(approx_strategy)<span class="sc">*</span><span class="fu">length</span>(int_strategy)<span class="sc">*</span><span class="fu">length</span>(models), <span class="at">ncol=</span><span class="dv">3</span>)</span>
+<span id="cb54-5"><a href="#cb54-5" aria-hidden="true" tabindex="-1"></a>fits_marginals_b <span class="ot">&lt;-</span> <span class="fu">vector</span>(<span class="at">mode=</span><span class="st">"list"</span>, <span class="at">length=</span><span class="fu">length</span>(approx_strategy)<span class="sc">*</span><span class="fu">length</span>(int_strategy)<span class="sc">*</span><span class="fu">length</span>(models))</span>
+<span id="cb54-6"><a href="#cb54-6" aria-hidden="true" tabindex="-1"></a>fits_marginals_temp <span class="ot">&lt;-</span> <span class="fu">vector</span>(<span class="at">mode=</span><span class="st">"list"</span>, <span class="at">length=</span><span class="fu">length</span>(approx_strategy)<span class="sc">*</span><span class="fu">length</span>(int_strategy)<span class="sc">*</span><span class="fu">length</span>(models))</span>
+<span id="cb54-7"><a href="#cb54-7" aria-hidden="true" tabindex="-1"></a>fits_marginals_prec <span class="ot">&lt;-</span> <span class="fu">vector</span>(<span class="at">mode=</span><span class="st">"list"</span>, <span class="at">length=</span><span class="fu">length</span>(approx_strategy)<span class="sc">*</span><span class="fu">length</span>(int_strategy)<span class="sc">*</span><span class="fu">length</span>(models))</span>
+<span id="cb54-8"><a href="#cb54-8" aria-hidden="true" tabindex="-1"></a>index_f <span class="ot">&lt;-</span> <span class="dv">0</span></span>
+<span id="cb54-9"><a href="#cb54-9" aria-hidden="true" tabindex="-1"></a>model_names <span class="ot">&lt;-</span> <span class="fu">c</span>()</span>
+<span id="cb54-10"><a href="#cb54-10" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (m <span class="cf">in</span> models){</span>
+<span id="cb54-11"><a href="#cb54-11" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span>(a <span class="cf">in</span> approx_strategy){</span>
+<span id="cb54-12"><a href="#cb54-12" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> (i <span class="cf">in</span> int_strategy){</span>
+<span id="cb54-13"><a href="#cb54-13" aria-hidden="true" tabindex="-1"></a>      index_f <span class="ot">&lt;-</span> index_f <span class="sc">+</span> <span class="dv">1</span></span>
+<span id="cb54-14"><a href="#cb54-14" aria-hidden="true" tabindex="-1"></a>      <span class="cf">if</span> (m<span class="sc">==</span><span class="st">"matern"</span>){</span>
+<span id="cb54-15"><a href="#cb54-15" aria-hidden="true" tabindex="-1"></a>        formula_approx <span class="ot">&lt;-</span> y <span class="sc">~</span> <span class="dv">0</span> <span class="sc">+</span> b0 <span class="sc">+</span> covtemp <span class="sc">+</span> covprec <span class="sc">+</span> <span class="fu">f</span>(s, <span class="at">model =</span> spde)</span>
+<span id="cb54-16"><a href="#cb54-16" aria-hidden="true" tabindex="-1"></a>      }</span>
+<span id="cb54-17"><a href="#cb54-17" aria-hidden="true" tabindex="-1"></a>      <span class="cf">else</span>{</span>
+<span id="cb54-18"><a href="#cb54-18" aria-hidden="true" tabindex="-1"></a>        formula_approx <span class="ot">&lt;-</span> y <span class="sc">~</span> <span class="dv">0</span> <span class="sc">+</span> b0 <span class="sc">+</span> covtemp <span class="sc">+</span> covprec <span class="sc">+</span> <span class="fu">f</span>(s, <span class="at">model =</span> <span class="st">"iid"</span>)</span>
+<span id="cb54-19"><a href="#cb54-19" aria-hidden="true" tabindex="-1"></a>      }</span>
+<span id="cb54-20"><a href="#cb54-20" aria-hidden="true" tabindex="-1"></a>      <span class="fu">print</span>(<span class="fu">paste</span>(a, <span class="st">", "</span>, i, <span class="st">", "</span>, m))</span>
+<span id="cb54-21"><a href="#cb54-21" aria-hidden="true" tabindex="-1"></a>      model_names <span class="ot">&lt;-</span> <span class="fu">c</span>(model_names, <span class="fu">paste</span>(a, <span class="st">", "</span>, i, <span class="st">", "</span>, m))</span>
+<span id="cb54-22"><a href="#cb54-22" aria-hidden="true" tabindex="-1"></a>      fit_approx <span class="ot">&lt;-</span> <span class="fu">inla</span>(formula, <span class="at">family =</span> <span class="st">"gaussian"</span>,</span>
+<span id="cb54-23"><a href="#cb54-23" aria-hidden="true" tabindex="-1"></a>         <span class="at">data =</span> <span class="fu">inla.stack.data</span>(stk.full),</span>
+<span id="cb54-24"><a href="#cb54-24" aria-hidden="true" tabindex="-1"></a>         <span class="at">control.inla =</span> <span class="fu">list</span>(<span class="at">strategy =</span> a, <span class="at">int.strategy =</span> i),</span>
+<span id="cb54-25"><a href="#cb54-25" aria-hidden="true" tabindex="-1"></a>         <span class="at">control.compute =</span> <span class="fu">list</span>(<span class="at">cpo =</span> <span class="cn">TRUE</span>, <span class="at">dic =</span> <span class="cn">TRUE</span>, <span class="at">waic =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb54-26"><a href="#cb54-26" aria-hidden="true" tabindex="-1"></a>         <span class="at">control.predictor =</span> <span class="fu">list</span>(<span class="at">compute =</span> <span class="cn">TRUE</span>, <span class="at">A =</span> <span class="fu">inla.stack.A</span>(stk.full)))</span>
+<span id="cb54-27"><a href="#cb54-27" aria-hidden="true" tabindex="-1"></a>      fits[index_f,] <span class="ot">&lt;-</span> fit_approx<span class="sc">$</span>summary.fixed<span class="sc">$</span>mean</span>
+<span id="cb54-28"><a href="#cb54-28" aria-hidden="true" tabindex="-1"></a>      fits_marginals_b[[index_f]] <span class="ot">&lt;-</span> fit_approx<span class="sc">$</span>marginals.fixed<span class="sc">$</span>b0</span>
+<span id="cb54-29"><a href="#cb54-29" aria-hidden="true" tabindex="-1"></a>      fits_marginals_temp[[index_f]] <span class="ot">&lt;-</span> fit_approx<span class="sc">$</span>marginals.fixed<span class="sc">$</span>covtemp</span>
+<span id="cb54-30"><a href="#cb54-30" aria-hidden="true" tabindex="-1"></a>      fits_marginals_prec[[index_f]] <span class="ot">&lt;-</span> fit_approx<span class="sc">$</span>marginals.fixed<span class="sc">$</span>covprec</span>
+<span id="cb54-31"><a href="#cb54-31" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb54-32"><a href="#cb54-32" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb54-33"><a href="#cb54-33" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>[1] "gaussian ,  ccd ,  iid"
 [1] "gaussian ,  grid ,  iid"
@@ -884,11 +750,12 @@ covprec  -0.01411427 5.717319e-08</code></pre>
 [1] "laplace ,  eb ,  matern"</code></pre>
 </div>
 </div>
-<p>Let’s compare the means of the parameters ::: {.cell}</p>
-<div class="sourceCode cell-code" id="cb83"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb83-1"><a href="#cb83-1" aria-hidden="true" tabindex="-1"></a>fits_df <span class="ot">&lt;-</span> <span class="fu">as.data.frame</span>(fits)</span>
-<span id="cb83-2"><a href="#cb83-2" aria-hidden="true" tabindex="-1"></a><span class="fu">names</span>(fits_df) <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"b0"</span>, <span class="st">"covtemp"</span>, <span class="st">"covprec"</span>)</span>
-<span id="cb83-3"><a href="#cb83-3" aria-hidden="true" tabindex="-1"></a>fits_df<span class="sc">$</span>models <span class="ot">&lt;-</span> model_names</span>
-<span id="cb83-4"><a href="#cb83-4" aria-hidden="true" tabindex="-1"></a>fits_df</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p>This prints out all the combinations of approximation, integration strategy and correlation structure.</p>
+<p>Now we can compare the means of the parameters per different model set-up. ::: {.cell}</p>
+<div class="sourceCode cell-code" id="cb56"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb56-1"><a href="#cb56-1" aria-hidden="true" tabindex="-1"></a>fits_df <span class="ot">&lt;-</span> <span class="fu">as.data.frame</span>(fits)</span>
+<span id="cb56-2"><a href="#cb56-2" aria-hidden="true" tabindex="-1"></a><span class="fu">names</span>(fits_df) <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"b0"</span>, <span class="st">"covtemp"</span>, <span class="st">"covprec"</span>)</span>
+<span id="cb56-3"><a href="#cb56-3" aria-hidden="true" tabindex="-1"></a>fits_df<span class="sc">$</span>models <span class="ot">&lt;-</span> model_names</span>
+<span id="cb56-4"><a href="#cb56-4" aria-hidden="true" tabindex="-1"></a>fits_df</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>          b0  covtemp     covprec                               models
 1  -13.85789 2.049883 -0.01973532               gaussian ,  ccd ,  iid
@@ -910,27 +777,32 @@ covprec  -0.01411427 5.717319e-08</code></pre>
 17 -15.29769 2.170035 -0.01550201            laplace ,  grid ,  matern
 18 -13.11329 1.992509 -0.02262044              laplace ,  eb ,  matern</code></pre>
 </div>
-<p>::: Also compare the posteriors themselves ::: {.cell}</p>
-<div class="sourceCode cell-code" id="cb85"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb85-1"><a href="#cb85-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Combine dataframes</span></span>
-<span id="cb85-2"><a href="#cb85-2" aria-hidden="true" tabindex="-1"></a>df_list <span class="ot">&lt;-</span> <span class="fu">lapply</span>(fits_marginals, <span class="cf">function</span>(m) {</span>
-<span id="cb85-3"><a href="#cb85-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">data.frame</span>(<span class="at">x =</span> m[,<span class="dv">1</span>], <span class="at">y =</span> m[,<span class="dv">2</span>]) </span>
-<span id="cb85-4"><a href="#cb85-4" aria-hidden="true" tabindex="-1"></a>})</span>
-<span id="cb85-5"><a href="#cb85-5" aria-hidden="true" tabindex="-1"></a>new_df <span class="ot">&lt;-</span> <span class="fu">do.call</span>(rbind, df_list) </span>
-<span id="cb85-6"><a href="#cb85-6" aria-hidden="true" tabindex="-1"></a><span class="co"># Add an ID column</span></span>
-<span id="cb85-7"><a href="#cb85-7" aria-hidden="true" tabindex="-1"></a>row_counts <span class="ot">&lt;-</span> <span class="fu">sapply</span>(fits_marginals, nrow)</span>
-<span id="cb85-8"><a href="#cb85-8" aria-hidden="true" tabindex="-1"></a>ids <span class="ot">&lt;-</span> <span class="fu">factor</span>(<span class="fu">rep</span>(<span class="dv">1</span><span class="sc">:</span><span class="fu">length</span>(fits_marginals), <span class="at">each =</span> row_counts))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p>::: It’s also possible to compare the posteriors themselves. ::: {.cell}</p>
+<div class="sourceCode cell-code" id="cb58"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb58-1"><a href="#cb58-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Combine dataframes</span></span>
+<span id="cb58-2"><a href="#cb58-2" aria-hidden="true" tabindex="-1"></a>df_list_1 <span class="ot">&lt;-</span> <span class="fu">lapply</span>(fits_marginals_b, <span class="cf">function</span>(m) {</span>
+<span id="cb58-3"><a href="#cb58-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">data.frame</span>(<span class="at">x =</span> m[,<span class="dv">1</span>], <span class="at">y =</span> m[,<span class="dv">2</span>]) </span>
+<span id="cb58-4"><a href="#cb58-4" aria-hidden="true" tabindex="-1"></a>})</span>
+<span id="cb58-5"><a href="#cb58-5" aria-hidden="true" tabindex="-1"></a>df_list_2 <span class="ot">&lt;-</span> <span class="fu">lapply</span>(fits_marginals_temp, <span class="cf">function</span>(m) {</span>
+<span id="cb58-6"><a href="#cb58-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">data.frame</span>(<span class="at">x =</span> m[,<span class="dv">1</span>], <span class="at">y =</span> m[,<span class="dv">2</span>]) </span>
+<span id="cb58-7"><a href="#cb58-7" aria-hidden="true" tabindex="-1"></a>})</span>
+<span id="cb58-8"><a href="#cb58-8" aria-hidden="true" tabindex="-1"></a>df_list_3 <span class="ot">&lt;-</span> <span class="fu">lapply</span>(fits_marginals_prec, <span class="cf">function</span>(m) {</span>
+<span id="cb58-9"><a href="#cb58-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">data.frame</span>(<span class="at">x =</span> m[,<span class="dv">1</span>], <span class="at">y =</span> m[,<span class="dv">2</span>]) </span>
+<span id="cb58-10"><a href="#cb58-10" aria-hidden="true" tabindex="-1"></a>})</span>
+<span id="cb58-11"><a href="#cb58-11" aria-hidden="true" tabindex="-1"></a>new_df_1 <span class="ot">&lt;-</span> <span class="fu">do.call</span>(rbind, df_list_1) </span>
+<span id="cb58-12"><a href="#cb58-12" aria-hidden="true" tabindex="-1"></a>new_df_2 <span class="ot">&lt;-</span> <span class="fu">do.call</span>(rbind, df_list_2) </span>
+<span id="cb58-13"><a href="#cb58-13" aria-hidden="true" tabindex="-1"></a>new_df_3 <span class="ot">&lt;-</span> <span class="fu">do.call</span>(rbind, df_list_3) </span>
+<span id="cb58-14"><a href="#cb58-14" aria-hidden="true" tabindex="-1"></a><span class="co"># Add an ID column</span></span>
+<span id="cb58-15"><a href="#cb58-15" aria-hidden="true" tabindex="-1"></a>row_counts <span class="ot">&lt;-</span> <span class="fu">sapply</span>(fits_marginals_b, nrow)</span>
+<span id="cb58-16"><a href="#cb58-16" aria-hidden="true" tabindex="-1"></a>ids <span class="ot">&lt;-</span> <span class="fu">factor</span>(<span class="fu">rep</span>(<span class="dv">1</span><span class="sc">:</span><span class="fu">length</span>(fits_marginals_b), <span class="at">each =</span> row_counts))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stderr">
-<pre><code>Warning in rep(1:length(fits_marginals), each = row_counts): first element used
-of 'each' argument</code></pre>
+<pre><code>Warning in rep(1:length(fits_marginals_b), each = row_counts): first element
+used of 'each' argument</code></pre>
 </div>
-<div class="sourceCode cell-code" id="cb87"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb87-1"><a href="#cb87-1" aria-hidden="true" tabindex="-1"></a>new_df<span class="sc">$</span>id <span class="ot">&lt;-</span> ids</span>
-<span id="cb87-2"><a href="#cb87-2" aria-hidden="true" tabindex="-1"></a><span class="fu">length</span>(ids)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-stdout">
-<pre><code>[1] 774</code></pre>
-</div>
-<div class="sourceCode cell-code" id="cb89"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb89-1"><a href="#cb89-1" aria-hidden="true" tabindex="-1"></a>new_df <span class="ot">&lt;-</span> new_df[<span class="dv">1</span><span class="sc">:</span><span class="dv">86</span>,]</span>
-<span id="cb89-2"><a href="#cb89-2" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(new_df, <span class="fu">aes</span>(<span class="at">x =</span> x, <span class="at">y =</span> y, <span class="at">colour =</span> id)) <span class="sc">+</span> </span>
-<span id="cb89-3"><a href="#cb89-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>() </span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb60"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb60-1"><a href="#cb60-1" aria-hidden="true" tabindex="-1"></a>new_df_1<span class="sc">$</span>id <span class="ot">&lt;-</span> ids</span>
+<span id="cb60-2"><a href="#cb60-2" aria-hidden="true" tabindex="-1"></a>new_df_2<span class="sc">$</span>id <span class="ot">&lt;-</span> ids</span>
+<span id="cb60-3"><a href="#cb60-3" aria-hidden="true" tabindex="-1"></a>new_df_3<span class="sc">$</span>id <span class="ot">&lt;-</span> ids</span>
+<span id="cb60-4"><a href="#cb60-4" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(new_df_1, <span class="fu">aes</span>(<span class="at">x =</span> x, <span class="at">y =</span> y, <span class="at">colour =</span> id)) <span class="sc">+</span> </span>
+<span id="cb60-5"><a href="#cb60-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>() <span class="sc">+</span> <span class="fu">ggtitle</span>(<span class="st">"Posterior of B0"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output-display">
 <div>
 <figure class="figure">
@@ -938,28 +810,42 @@ of 'each' argument</code></pre>
 </figure>
 </div>
 </div>
-<p>::: Wow so with this data set there is not really much different between meshes or with estimation methods.</p>
-<p>Another useful feature is the set of functions that can be used to manipulate the marginal distributions. Might be useful to compute posterior quantities such as KL divergence: <a href="https://becarioprecario.bitbucket.io/inla-gitbook/ch-INLA.html#sec:marginals" class="uri">https://becarioprecario.bitbucket.io/inla-gitbook/ch-INLA.html#sec:marginals</a></p>
-<p>Again from <a href="https://www.paulamoraga.com/book-geospatial/sec-inla.html" class="uri">https://www.paulamoraga.com/book-geospatial/sec-inla.html</a> is helpful.</p>
-<div class="cell">
-<div class="sourceCode cell-code" id="cb90"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb90-1"><a href="#cb90-1" aria-hidden="true" tabindex="-1"></a><span class="fu">inla.mmarginal</span>(res<span class="sc">$</span>marginals.fixed<span class="sc">$</span>b0)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb61"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb61-1"><a href="#cb61-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(new_df_2, <span class="fu">aes</span>(<span class="at">x =</span> x, <span class="at">y =</span> y, <span class="at">colour =</span> id)) <span class="sc">+</span> </span>
+<span id="cb61-2"><a href="#cb61-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>() <span class="sc">+</span> <span class="fu">ggtitle</span>(<span class="st">"Posterior of Temperature parameter"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="inla_inlabru_tutorial_netherlands_data_files/figure-html/compare-marginals-2.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+<div class="sourceCode cell-code" id="cb62"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb62-1"><a href="#cb62-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(new_df_3, <span class="fu">aes</span>(<span class="at">x =</span> x, <span class="at">y =</span> y, <span class="at">colour =</span> id)) <span class="sc">+</span> </span>
+<span id="cb62-2"><a href="#cb62-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>() <span class="sc">+</span> <span class="fu">ggtitle</span>(<span class="st">"Posterior of Precipitation parameter"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="inla_inlabru_tutorial_netherlands_data_files/figure-html/compare-marginals-3.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+<p>::: Wow so with this data set there is not really much different between estimation methods, regardless of the parameter. I suppose that is a good sign?</p>
+<p>Another useful feature is the set of functions that can be used to manipulate the marginal distributions: <a href="https://becarioprecario.bitbucket.io/inla-gitbook/ch-INLA.html#sec:marginals" class="uri">https://becarioprecario.bitbucket.io/inla-gitbook/ch-INLA.html#sec:marginals</a> ::: {.cell}</p>
+<div class="sourceCode cell-code" id="cb63"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb63-1"><a href="#cb63-1" aria-hidden="true" tabindex="-1"></a><span class="fu">inla.mmarginal</span>(res<span class="sc">$</span>marginals.fixed<span class="sc">$</span>b0)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>[1] -14.90955</code></pre>
 </div>
-<div class="sourceCode cell-code" id="cb92"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb92-1"><a href="#cb92-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Should be the same?</span></span>
-<span id="cb92-2"><a href="#cb92-2" aria-hidden="true" tabindex="-1"></a>res<span class="sc">$</span>summary.fixed<span class="sc">$</span>mode[<span class="dv">1</span>]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb65"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb65-1"><a href="#cb65-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Should be the same?</span></span>
+<span id="cb65-2"><a href="#cb65-2" aria-hidden="true" tabindex="-1"></a>res<span class="sc">$</span>summary.fixed<span class="sc">$</span>mode[<span class="dv">1</span>]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>[1] -15.1714</code></pre>
 </div>
-</div>
-<p>Next, let’s write that model in INLABRU and check if the estimates are the same. Then, we also look at how to fit the LGCP in INLA/INLABRU.</p>
-<p>Wne can use the same mesh and spde function as we used before. And also the same formula! (I think). But what is especially nice about INLABRU is that we don’t have to set up the stack with the projection matrices. We just model the response variable as a function of the covariates in the dataset we set up earlier and the locations of the observations. In INLABRU, we can use the sf dataset object directly.</p>
-<p>INLA ::: {.cell}</p>
-<div class="sourceCode cell-code" id="cb94"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb94-1"><a href="#cb94-1" aria-hidden="true" tabindex="-1"></a>formula <span class="ot">&lt;-</span> Value <span class="sc">~</span> <span class="fu">Intercept</span>(<span class="dv">1</span>) <span class="sc">+</span> covtemp <span class="sc">+</span> covprec <span class="sc">+</span> <span class="fu">f</span>(geometry, <span class="at">model =</span> spde)</span>
-<span id="cb94-2"><a href="#cb94-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Fit the model for inlabru</span></span>
-<span id="cb94-3"><a href="#cb94-3" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">&lt;-</span> <span class="fu">bru</span>(formula, <span class="at">data =</span> air_sf_project, <span class="at">family =</span> <span class="st">"gaussian"</span>)</span>
-<span id="cb94-4"><a href="#cb94-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Summarize the results</span></span>
-<span id="cb94-5"><a href="#cb94-5" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(fit)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p>::: Next, let’s write that model in <code>inlabru</code> and check if the estimates are the same. We can use the same mesh and spde function as we used before. And also the same formula! But what is especially nice about <code>inlabru</code> is that we don’t have to set up the stack with the projection matrices. We just model the response variable as a function of the covariates in the dataset we set up earlier and the locations of the observations. In <code>inlabru</code>, we can use the <code>sf</code> dataset object directly.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb67"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb67-1"><a href="#cb67-1" aria-hidden="true" tabindex="-1"></a>formula <span class="ot">&lt;-</span> Value <span class="sc">~</span> <span class="fu">Intercept</span>(<span class="dv">1</span>) <span class="sc">+</span> covtemp <span class="sc">+</span> covprec <span class="sc">+</span> <span class="fu">f</span>(geometry, <span class="at">model =</span> spde)</span>
+<span id="cb67-2"><a href="#cb67-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Fit the model for inlabru</span></span>
+<span id="cb67-3"><a href="#cb67-3" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">&lt;-</span> <span class="fu">bru</span>(formula, <span class="at">data =</span> air_sf_project, <span class="at">family =</span> <span class="st">"gaussian"</span>)</span>
+<span id="cb67-4"><a href="#cb67-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Summarize the results</span></span>
+<span id="cb67-5"><a href="#cb67-5" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(fit)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>inlabru version: 2.12.0
 INLA version: 24.05.01-1
@@ -976,7 +862,7 @@ Likelihoods:
     Predictor: Value ~ .
     Used components: effects[Intercept, covtemp, covprec, f], latent[]
 Time used:
-    Pre = 0.8, Running = 0.685, Post = 0.29, Total = 1.77 
+    Pre = 0.93, Running = 0.765, Post = 0.274, Total = 1.97 
 Fixed effects:
              mean     sd 0.025quant 0.5quant 0.975quant    mode kld
 Intercept -15.298 21.347    -57.760  -15.172     26.458 -15.171   0
@@ -1009,13 +895,14 @@ Marginal log-Likelihood:  -145.00
 Posterior summaries for the linear predictor and the fitted values are computed
 (Posterior marginals needs also 'control.compute=list(return.marginals.predictor=TRUE)')</code></pre>
 </div>
-<p>::: That gives nearly the same estimates as from <code>INLA</code>. ::: {.cell}</p>
-<div class="sourceCode cell-code" id="cb96"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb96-1"><a href="#cb96-1" aria-hidden="true" tabindex="-1"></a>map_prj <span class="ot">&lt;-</span> <span class="fu">st_transform</span>(map, <span class="at">crs =</span> projMercator)</span>
-<span id="cb96-2"><a href="#cb96-2" aria-hidden="true" tabindex="-1"></a>predictions1 <span class="ot">&lt;-</span> <span class="fu">predict</span>(fit, <span class="at">newdata=</span>dp, <span class="at">formula =</span> <span class="sc">~</span> Intercept <span class="sc">+</span> covtemp <span class="sc">+</span> covprec <span class="sc">+</span> f)</span>
-<span id="cb96-3"><a href="#cb96-3" aria-hidden="true" tabindex="-1"></a>predictions2 <span class="ot">&lt;-</span> <span class="fu">predict</span>(fit, <span class="at">newdata=</span>dp, <span class="at">formula =</span> <span class="sc">~</span> f)</span>
-<span id="cb96-4"><a href="#cb96-4" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>() <span class="sc">+</span></span>
-<span id="cb96-5"><a href="#cb96-5" aria-hidden="true" tabindex="-1"></a><span class="fu">geom_sf</span>(<span class="at">data=</span>predictions1, <span class="fu">aes</span>(<span class="at">color=</span>mean)) <span class="sc">+</span></span>
-<span id="cb96-6"><a href="#cb96-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_colour_gradient</span>(<span class="at">low =</span> <span class="st">"blue"</span>, <span class="at">high =</span> <span class="st">"yellow"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>That gives nearly the same estimates as from <code>INLA</code>. ::: {.cell}</p>
+<div class="sourceCode cell-code" id="cb69"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb69-1"><a href="#cb69-1" aria-hidden="true" tabindex="-1"></a>map_prj <span class="ot">&lt;-</span> <span class="fu">st_transform</span>(map, <span class="at">crs =</span> projMercator)</span>
+<span id="cb69-2"><a href="#cb69-2" aria-hidden="true" tabindex="-1"></a>predictions1 <span class="ot">&lt;-</span> <span class="fu">predict</span>(fit, <span class="at">newdata=</span>dp, <span class="at">formula =</span> <span class="sc">~</span> Intercept <span class="sc">+</span> covtemp <span class="sc">+</span> covprec <span class="sc">+</span> f)</span>
+<span id="cb69-3"><a href="#cb69-3" aria-hidden="true" tabindex="-1"></a>predictions2 <span class="ot">&lt;-</span> <span class="fu">predict</span>(fit, <span class="at">newdata=</span>dp, <span class="at">formula =</span> <span class="sc">~</span> f)</span>
+<span id="cb69-4"><a href="#cb69-4" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>() <span class="sc">+</span></span>
+<span id="cb69-5"><a href="#cb69-5" aria-hidden="true" tabindex="-1"></a><span class="fu">geom_sf</span>(<span class="at">data=</span>predictions1, <span class="fu">aes</span>(<span class="at">color=</span>mean)) <span class="sc">+</span></span>
+<span id="cb69-6"><a href="#cb69-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_colour_gradient</span>(<span class="at">low =</span> <span class="st">"blue"</span>, <span class="at">high =</span> <span class="st">"yellow"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output-display">
 <div>
 <figure class="figure">
@@ -1023,10 +910,10 @@ Posterior summaries for the linear predictor and the fitted values are computed
 </figure>
 </div>
 </div>
-<div class="sourceCode cell-code" id="cb97"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb97-1"><a href="#cb97-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Check the contribution of just the spatial field</span></span>
-<span id="cb97-2"><a href="#cb97-2" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>() <span class="sc">+</span></span>
-<span id="cb97-3"><a href="#cb97-3" aria-hidden="true" tabindex="-1"></a><span class="fu">geom_sf</span>(<span class="at">data=</span>predictions2, <span class="fu">aes</span>(<span class="at">color=</span>mean)) <span class="sc">+</span></span>
-<span id="cb97-4"><a href="#cb97-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_colour_gradient</span>(<span class="at">low =</span> <span class="st">"blue"</span>, <span class="at">high =</span> <span class="st">"yellow"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb70"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb70-1"><a href="#cb70-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Check the contribution of just the spatial field</span></span>
+<span id="cb70-2"><a href="#cb70-2" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>() <span class="sc">+</span></span>
+<span id="cb70-3"><a href="#cb70-3" aria-hidden="true" tabindex="-1"></a><span class="fu">geom_sf</span>(<span class="at">data=</span>predictions2, <span class="fu">aes</span>(<span class="at">color=</span>mean)) <span class="sc">+</span></span>
+<span id="cb70-4"><a href="#cb70-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_colour_gradient</span>(<span class="at">low =</span> <span class="st">"blue"</span>, <span class="at">high =</span> <span class="st">"yellow"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output-display">
 <div>
 <figure class="figure">
@@ -1034,7 +921,7 @@ Posterior summaries for the linear predictor and the fitted values are computed
 </figure>
 </div>
 </div>
-<p>::: That concludes this section, showing how to fit spatial model in <code>INLA</code> and <code>inlabru</code>. There are a few things more to do: simulating data and seeing how well INLA recovers the parameters, and fitting a temporal model in both packages. But I’ll leave these for later.</p>
+<p>::: That concludes this section, showing how to fit spatial model in <code>INLA</code> and <code>inlabru</code>. There are a few things more to do: simulating data and seeing how well INLA recovers the parameters, and fitting a temporal model in both packages. But I’ll leave these for another time.</p>
 
 
 
