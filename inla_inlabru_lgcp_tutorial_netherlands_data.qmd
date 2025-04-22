@@ -1,17 +1,17 @@
-
 # Implementation of LGCP in INLA and INLABRU
 
-Having completed an examination of Air Pollutoin modelling in INLA and INLABRU, it is time to move on to modelling the point process
+## LGCP in INLA 
 
-Using data from GBIF.org (10 January 2025) GBIF Occurrence Download https://doi.org/10.15468/dl.p5cy6n
+Having completed air pollution modelling in `INLA` and `inlabru`, it is time to move on to the LGCP and the point process model. A couple of resources about point process modelling in INLA include: <https://becarioprecario.bitbucket.io/spde-gitbook/ch-stapp.html#sec:burkitt> and <https://www.paulamoraga.com/book-spatial/point-process-modeling.html>. I'll again be relying on the Moraga book for template code.
 
-Here's a space-time point process example: <https://becarioprecario.bitbucket.io/spde-gitbook/ch-stapp.html#sec:burkitt>
-
-## LGCP in INLA introduction
-
-Following https://www.paulamoraga.com/book-spatial/point-process-modeling.html for the INLA intro.
+The model fit here has intensity specified as 
+$$
+\lambda(s) = \beta_0 + f(s)
+$$
+Here I only use an intercept and spatial field to model the intensity, so we won't have to worry about downloading any covariates.
 
 ```{r set-up}
+#| output: false
 library(INLA)
 library(inlabru)
 library(sf)
@@ -21,8 +21,7 @@ library(terra)
 library(dplyr)
 library(readr)
 ```
-
-TODO: Fix issue reading data. StillIMage is doing something
+Now for the data. I'll use butterfly data from citizen science observations made in the Netherlands in 2023. The data is available in the GBIF repository <https://doi.org/10.15468/dl.p5cy6n>, which includes all butterfly observations uploaded to observation.org. So it's necessary to filter the dataset down to just the Netherlands. I filter for the species Lasiommata megera. This leaves us with 2705 observations.
 ```{r data}
 file_name <- file.path("D:", "data", "gbif_observation_org_butterflies", "gbif_butterfly_observation-org", "gbif_subset_netherlands_lepidoptera.csv")
 d <- read_delim(file_name, delim='\t', col_types=cols(infraspecificEpithet=col_character()))
@@ -32,13 +31,12 @@ sum(is.na(d))
 d <- st_as_sf(d, coords = c("decimalLongitude", "decimalLatitude"))
 st_crs(d) <- "EPSG:4326"
 st_crs("EPSG:3857")$proj4string
-projMercator <- st_crs("EPSG:3857")$proj4string
-projMercator
+projMercator <- "+proj=merc +a=6378137 +b=6378137 +lat_ts=0 +lon_0=0
++x_0=0 +y_0=0 +k=1 +units=km +nadgrids=@null +wktext +no_defs"
 # Observed coordinates
 d <- st_transform(d, crs = projMercator)
-d
 ```
-
+Before, I used the Netherlands map directly, but now there is some extra processing to do, due to little isolated boundaries within the main polygon of the Netherlands border.
 ```{r map}
 ?st_layers
 layers <- st_layers(file.path("D:", "data", "maps", "netherlands_bestuurlijkegrenzen_2021", "bestuurlijkegrenzen.gpkg"))
@@ -46,14 +44,13 @@ layers <- st_layers(file.path("D:", "data", "maps", "netherlands_bestuurlijkegre
 map <- st_read(file.path("D:", "data", "maps", "netherlands_bestuurlijkegrenzen_2021", "bestuurlijkegrenzen.gpkg"), layer = "landsgrens")
 map <- st_union(map)
 map <- st_as_sf(map)
-plot(map)
-# Damn it, there's a little isolated spec in the map!
+# there's a little isolated spec in the map!
 border_polygon <- st_cast(map, "POLYGON")
 border_polygon <- st_as_sfc(border_polygon)
 geos <- lapply(border_polygon, function(x) x[1])
-for (g in geos){
-  plot(st_polygon(g))
-}
+#for (g in geos){
+#  plot(st_polygon(g))
+#}
 # Get the border polygon
 border_final <- st_polygon(geos[[1]])
 # We still need sf object
@@ -66,8 +63,11 @@ coo <- st_coordinates(d)
 ggplot() + geom_sf(data = map) +
   geom_sf(data = d) + coord_sf(datum = projMercator)
 # Save this for later
-st_write(map, file.path("D:", "data", "maps", "netherlands_bestuurlijkegrenzen_2021", "clean_nl_boundary.gpkg"))
+st_write(map, file.path("D:", "data", "maps", "netherlands_bestuurlijkegrenzen_2021", "clean_nl_boundary.gpkg"), append=F)
 ```
+So that gives us a very clean map, with the location of Lasiommata megera observations.
+
+As in the previos example for air pollution data, we again create prediction points across the spatial region. These will be the locations at which the intensity is predicted.
 
 ```{r prediction-locations}
 # raster grid covering map
@@ -89,15 +89,12 @@ ggplot() + geom_sf(data = map) +
   geom_sf(data = dp) + coord_sf(datum = projMercator)
 coop <- st_coordinates(dp)
 ```
-
-Hmm, why do I need such a large unit? Something with mercator? Oh, am I in meters?
+Next, build the mesh. 
 ```{r mesh}
-map
 loc.d <- cbind(st_coordinates(map)[, 1], st_coordinates(map)[, 2])
 #mesh <- inla.mesh.2d(loc=coo, max.edge = c(50000, 100000))
 #mesh <- inla.mesh.2d(loc.domain=loc.d)
-mesh <- inla.mesh.2d(loc.domain = loc.d, max.edge = c(50000, 100000), crs=crs(d))
-mesh
+mesh <- inla.mesh.2d(loc.domain = loc.d, max.edge = c(50, 100), crs=crs(d))
 plot(mesh)
 points(coo, col = "red")
 axis(1)
@@ -108,7 +105,7 @@ axis(2)
 ```{r inla-spde}
 spde <- inla.spde2.matern(mesh = mesh, alpha = 2, constr = TRUE)
 ```
-
+In the point process setting, it is necessary to use the method of @simpson2016. This uses a dual mesh to approximate the point process likelihood. It is called a dual mesh because a mesh of polygons is generated, each centered around the vertices of the triangles in the first mesh. The code to create the dual mesh is available in both the SPDE book and Moraga book.
 ```{r dual-mesh}
 book.mesh.dual <- function(mesh) {
     if (mesh$manifold=='R2') {
@@ -153,17 +150,12 @@ plot(dmesh)
 axis(1)
 axis(2)
 ```
-We then do something a little tricky. The mesh is larger than the domain that the points were observed in or the study region. So the intersections between the polygons in the mesh and the locations in $D$ are computed  
+We then do something a little tricky. The mesh is larger than the domain that the points were observed in or the study region. So the intersections between the polygons in the mesh and the locations in $D$ are computed. 
 ```{r mesh-process}
-plot(loc.d)
 domain.polys <- Polygons(list(Polygon(loc.d)), '0')
 domainSP <- SpatialPolygons(list(domain.polys))
-plot(domainSP)
 domain_sf <- st_as_sf(domainSP)
-crs(domain_sf)
 domain_sf <- st_set_crs(domain_sf, projMercator)
-st_crs(domain_sf)
-plot(domain_sf)
 mesh_sf <- st_as_sf(dmesh)
 mesh_sf <- st_set_crs(mesh_sf, projMercator)
 # Check if the mesh polygons overlap with any of the locations 
@@ -176,13 +168,14 @@ w <- sapply(1:length(dmesh), function(i) {
 sum(w)
 st_area(map)
 ```
+That leaves us with a very nice looking mesh, where the black integration points fall within the Netherlands domain and red fall outside of it.
 ```{r plot-mesh}
 plot(mesh)
 plot(domain_sf, add=T, col="green")
 points(mesh$loc[which(w > 0), 1:2], col = "black", pch = 20)
 points(mesh$loc[which(w == 0), 1:2], col = "red", pch = 20)
 ```
-TODO: January 13th. Okay, now i'm stuck again. Finish later
+Next, create the `INLA` stack, for both observations and for prediction points.
 ```{r inla-matrices}
 y.pp <- rep(0:1, c(nv, n))
 e.pp <- c(w, rep(0, n))
@@ -214,7 +207,7 @@ effects = list(data.frame(b0 = rep(1, nrow(coop))),
 # stk.full has stk.e and stk.p
 stk.full.pp <- inla.stack(stk.e.pp, stk.p.pp)
 ```
-
+Finally, we can fit the model. This looks about the same as in the continuous setting. Notice the different strategy options for both the integration strategy and for the posterior approximation itself. `control.predictor` returns the posterior marginals, with `link=1` using the same link function as given in `family = 'poisson'`.
 ```{r lgcp-fit}
 formula <- y ~ 0 + b0 + f(s, model = spde)
 res <- inla(formula,  family = 'poisson',
@@ -240,6 +233,8 @@ grid$mean[indicespointswithin] <- pred_mean
 grid$ll[indicespointswithin] <- pred_ll
 grid$ul[indicespointswithin] <- pred_ul
 ```
+We can check the estimate for the intercept, as well as the parameters for the spatial field.
+
 Then plot the predicted intensity
 ```{r plot-preds-inla}
 #| eval: false
