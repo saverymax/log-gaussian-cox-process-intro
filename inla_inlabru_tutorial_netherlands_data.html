@@ -268,7 +268,7 @@ window.Quarto = {
 <p>The model fit here is a simple geostatistical one. I’ll be using air pollution data in the Netherlands. The model can be written as <span class="math display">\[
 Y_i \sim N(u_i, \sigma^2)\\
 u_i = \beta_0 + \beta_1\cdot\text{temperature}_i + \beta_2\cdot\text{precipitation}_i + S(x_i).
-\]</span> So it’s a typical Gaussian distributed variable with underlying latent structure $S(x_i), otherwise referred to as a random effect modelled as a Gaussian process that is spatially indexed. In either case, it represents measurements taken at discrete locations but used to describe or estimate a spatially continuous process, such as air pollution.</p>
+\]</span> So it’s a typical Gaussian distributed variable with underlying latent structure <span class="math inline">\(S(x_i)\)</span>, otherwise referred to as a random effect modelled as a Gaussian process that is spatially indexed. In either case, it represents measurements taken at discrete locations but used to describe or estimate a spatially continuous process, such as air pollution.</p>
 <p>Let’s get straight to data downloading and processing. I downloaded air pollution data in the Belgium and Netherlands for the year of 2023 from <a href="https://eeadmz1-downloads-webapp.azurewebsites.net/" class="uri">https://eeadmz1-downloads-webapp.azurewebsites.net/</a>. For now I just focus on the Netherlands data.</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(INLA)</span>
@@ -581,7 +581,7 @@ dbl  (8): Year, Air Pollution Level, Data Coverage, Verification, Longitude,...
 <div class="sourceCode cell-code" id="cb28"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Using mesh0</span></span>
 <span id="cb28-2"><a href="#cb28-2" aria-hidden="true" tabindex="-1"></a>mesh <span class="ot">&lt;-</span><span class="fu">inla.mesh.2d</span>(<span class="at">loc =</span> coo, <span class="at">max.edge=</span><span class="fu">c</span>(<span class="dv">200</span>, <span class="dv">500</span>), <span class="at">crs=</span><span class="fu">st_crs</span>(air_sf_project))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
-<p>There are a number of options to play with: <code>max.edge</code> controls the largest triangle edge length, and providing it with a vector <code>c(inner, outer)</code> sets the max edge for inside the boundary and outside the boundary. The purpose of this is to avoid boundary effects in the estimation of the model, where boundary values have high variance. <span class="citation" data-cites="lindgren2015">(<a href="references.html#ref-lindgren2015" role="doc-biblioref"><strong>lindgren2015?</strong></a>)</span> suggests to extend the domain by some amount.</p>
+<p>There are a number of options to play with: <code>max.edge</code> controls the largest triangle edge length, and providing it with a vector <code>c(inner, outer)</code> sets the max edge for inside the boundary and outside the boundary. The purpose of this is to avoid boundary effects in the estimation of the model, where boundary values have high variance. <span class="citation" data-cites="lindgren2015">Lindgren and Rue (<a href="references.html#ref-lindgren2015" role="doc-biblioref">2015</a>)</span> suggests to extend the domain by some amount.</p>
 <p><code>cutoff</code> is the minimum allowed distance between points. Otherwise, points are replaced by a single vertex. For areas of high clusters of points, this could be useful to reduce redundancy. If no <code>boundary</code> is set the mesh is created on the convex hull of the observations.</p>
 <p><a href="https://punama.github.io/BDI_INLA/" class="uri">https://punama.github.io/BDI_INLA/</a> is also a good source for this. Thanks!</p>
 <p>Next we construct the A matrix that “A that projects the GRF from the observations to the vertices of the triangulated mesh” (<span class="citation" data-cites="moraga2023">Moraga (<a href="references.html#ref-moraga2023" role="doc-biblioref">2023</a>)</span>). The A matrix has a row for each observation, and columns equal to the number of vertices in the mesh. The number of vertices in our mesh can be checked with <code>mesh$n</code>. Below, two different meshes are generated. One for the observation locations, and one for the prediction locations. We need to set these both at once, because to make predictions in INLA we have to have that all pre-specified, unlike with the typical modelling style in R. That was why I created the grid of prediction points initially.</p>
@@ -915,7 +915,7 @@ Likelihoods:
     Predictor: Value ~ .
     Used components: effects[Intercept, covtemp, covprec, f], latent[]
 Time used:
-    Pre = 1.68, Running = 0.699, Post = 0.363, Total = 2.75 
+    Pre = 1.28, Running = 0.712, Post = 0.258, Total = 2.25 
 Fixed effects:
              mean     sd 0.025quant 0.5quant 0.975quant    mode kld
 Intercept -15.298 21.347    -57.760  -15.172     26.458 -15.171   0
@@ -982,6 +982,9 @@ Posterior summaries for the linear predictor and the fitted values are computed
 
 
 <div id="refs" class="references csl-bib-body hanging-indent" data-entry-spacing="0" role="list" style="display: none">
+<div id="ref-lindgren2015" class="csl-entry" role="listitem">
+Lindgren, Finn, and Håvard Rue. 2015. <span>“Bayesian <span>Spatial Modelling</span> with <span>R-INLA</span>.”</span> <em>Journal of Statistical Software</em> 63 (February): 1–25. <a href="https://doi.org/10.18637/jss.v063.i19">https://doi.org/10.18637/jss.v063.i19</a>.
+</div>
 <div id="ref-moraga2023" class="csl-entry" role="listitem">
 Moraga, Paula. 2023. <em>Spatial <span>Statistics</span> for <span>Data Science</span>: <span>Theory</span> and <span>Practice</span> with <span>R</span></em>. Chapman &amp; Hall/CRC Data Science Series.
 </div>
