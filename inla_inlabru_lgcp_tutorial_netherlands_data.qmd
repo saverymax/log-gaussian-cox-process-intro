@@ -6,7 +6,7 @@ Having completed air pollution modelling in `INLA` and `inlabru`, it is time to 
 
 The model fit here has intensity specified as 
 $$
-\lambda(s) = \beta_0 + f(s)
+\lambda(s) = \exp[\beta_0 + f(s)]
 $$
 Here I only use an intercept and spatial field to model the intensity, so we won't have to worry about downloading any covariates.
 
@@ -88,7 +88,7 @@ ggplot() + geom_sf(data = map) +
   geom_sf(data = dp) + coord_sf(datum = projMercator)
 coop <- st_coordinates(dp)
 ```
-Next, build the mesh. 
+Next, build the mesh. I left the projection in meters here, so the max.edge has to reflect those units. I also found that the parameter estimates in this example were particularly sensitive to the resolution of the triangles in the mesh, so I chose a `max.edge`s that gave good estimates but also weren't too slow in the fitting process. The main takeaway here is that it is important to explore different meshes a bit and the effect of that on your model.
 ```{r mesh}
 loc.d <- cbind(st_coordinates(map)[, 1], st_coordinates(map)[, 2])
 #mesh <- inla.mesh.2d(loc=coo, max.edge = c(50000, 100000))
@@ -102,7 +102,7 @@ axis(2)
 (nv <- mesh$n)
 (n <- nrow(coo))
 ```
-Using `spde <- inla.spde2.matern(mesh = mesh, alpha = 2, constr = TRUE)` led to some differences in the `inla` and `INLABRU` models, mainly in that the intercept was quite different between the two. So I started to use the Penalized Complexity priors on the matern function instead:
+Using `spde <- inla.spde2.matern(mesh = mesh, alpha = 2, constr = TRUE)` led to some differences in the `inla` and `INLABRU` models, mainly in that the intercept was quite different between the two. So I started to use the Penalized Complexity priors on the matern function instead. The PC priors can be read about in @simpson2017.
 ```{r inla-spde}
 spde <- inla.spde2.pcmatern(mesh = mesh, alpha = 2, constr = TRUE, prior.range = c(10, 0.01), prior.sigma = c(1, 0.01))
 ```
@@ -151,7 +151,7 @@ plot(dmesh)
 axis(1)
 axis(2)
 ```
-We then do something a little tricky. The mesh is larger than the domain that the points were observed in or the study region. So the intersections between the polygons in the mesh and the locations in $D$ are computed. 
+We then do something a little tricky. The mesh is larger than the domain that the points were observed in or the study region. So the intersections between the polygons in the mesh and the locations in $D$ are computed and the integration weights are returned based on the overlap. 
 ```{r mesh-process}
 domain.polys <- Polygons(list(Polygon(loc.d)), '0')
 domainSP <- SpatialPolygons(list(domain.polys))
@@ -166,8 +166,6 @@ w <- sapply(1:length(dmesh), function(i) {
   }
   else return(0)
 })
-sum(w)
-st_area(map)
 
 # Fun little exercise as an alternative way to calculate the weights.
 # dp <- fm_pixels(mesh, dims = c(50, 50), mask = domain_sf)
@@ -181,19 +179,25 @@ st_area(map)
 # w <- Matrix::colSums(A_weighted)
 # w <- as.vector(w)
 # sum(w)
+
+sum(w)
+st_area(map)
 ```
 Notice that the weights and and the area of the domain are the same. 
 
 We can see in the plot below that we are left with a very nice looking mesh, where the black integration points fall within the Netherlands domain and red fall outside of it.
 ```{r plot-mesh}
 plot(mesh)
-plot(domain_sf, add=T, col="green")
+plot(domain_sf, add=T)
 points(mesh$loc[which(w > 0), 1:2], col = "black", pch = 20)
 points(mesh$loc[which(w == 0), 1:2], col = "red", pch = 20)
 ```
 Next, create the `INLA` stack, for both observations and for prediction points. In the first section I didn't provide that much detail about the stack, so I'll explain it in more detail here. 
 
-First we create vectors for the observed response and for estimation. `nv` is the number of mesh nodes and `n` is the number of observations, where there will be a 0 for element of length `nv` and a 1 for each of length `n`. `e.pp` will consist of the integration weights `w` of length `nv` and a set of 0s of length `n`. This is for the numerical integration in the LGCP likelihood. Just as in the point process likelihood, we have two components: An intractable integral to be approximated, and a product of point locations.
+First we create vectors for the observed response and for estimation. `nv` is the number of mesh nodes and `n` is the number of observations, where there will be a 0 for element of length `nv` and a 1 for each of length `n`. `e.pp` will consist of the integration weights `w` of length `nv` and a set of 0s of length `n`. This is for the numerical integration in the LGCP likelihood. Just as in the point process likelihood, we have two components: An intractable integral to be approximated, and a product of point locations: 
+$$
+L(\lambda)\propto\prod_iλ(s_i​)\exp\left(−\int_D\lambda(s)ds\right)
+$$
 ```{r y-vec}
 y.pp <- rep(0:1, c(nv, n))
 length(y.pp)
@@ -206,7 +210,7 @@ $$
 $$
 where $\boldsymbol{z}=\{z_1,z_2,,,z_{n_v}\}$ will be the values of the spatial field at the nodes.
 
-In the model here, we have both nodes and observed locations, and the points for prediction. So we can write that all out as
+In the model here, we have both nodes and observed locations, $\boldsymbol{z}=\{z_1,z_2,,,z_{n_v}, z_{{n_v+1}}, ...,z_{n_v+n}\}$, and the points for prediction, $\boldsymbol{z}_{pred}=\{z_1,z_2,,,z_{n_{pred}}\}$. So we can write that all out as
 $$
 \begin{aligned}
 \begin{pmatrix}
@@ -225,7 +229,7 @@ $$
 \boldsymbol{1}_{npred}
 \beta_0 +
 \boldsymbol{A}_{npred}
-\boldsymbol{z}
+\boldsymbol{z}_{pred}
 \end{aligned}
 $$
 so that there is a response for each component, an intercept for each, and a projection matrix for each. The below code reflects this. Notice that for `A.y` and `A.pp`, we use the function `inla.spde.make.A()`. This function interpolates the values of the spatial field at the observed location using the triangles in the mesh that each location falls within.
@@ -260,7 +264,7 @@ effects = list(data.frame(b0 = rep(1, nrow(coop))),
 # stk.full has stk.e and stk.p
 stk.full.pp <- inla.stack(stk.e.pp, stk.p.pp)
 ```
-Finally, we can fit the model. This looks about the same as in the continuous setting. Notice the different strategy options for both the integration strategy and for the posterior approximation itself. `control.predictor` returns the posterior marginals for the observed and node locations, with `link=1` using the same link function as given in `family = 'poisson'`.
+Finally, we can fit the model. This looks about the same as in the continuous setting. Notice the different strategy options for both the integration strategy and for the posterior approximation itself. `control.predictor` returns the posterior marginals for the observed and node locations, with `link=1` using the same link function as given in `family = 'poisson'`. 
 ```{r lgcp-fit}
 formula <- y ~ -1 + b0 + f(s, model = spde)
 res <- inla(formula,  family = 'poisson',
@@ -271,6 +275,7 @@ res <- inla(formula,  family = 'poisson',
     E = inla.stack.data(stk.full.pp)$e,
   control.fixed=list(prec = 0.001^2))
 ```
+`prec = 0.001^2` sets a vague gaussian prior, $N(0, \sigma^2=1/\text{prec}=1000)$.
 
 We can check the estimate for the intercept, as well as the parameters for the spatial field.
 ```{r check-fit}
@@ -341,5 +346,6 @@ ggplot() +
 geom_sf(data=predictions2, aes(color=mean)) +
   scale_colour_gradient(low = "blue", high = "yellow")
 ```
-That concludes my demonstrations using the `INLA` and `inlabru` software. This may hopefully serve as a useful reference for someone, at least for myself. As can be seen, the INLA modelling approach is quite flexible and can be used to construct all sorts of models. It isn't the simplest approach though, so understanding each element can take a while, but the advantage is that once you are comfortable with it, there is a lot that can be done all under the same INLA umbrella.
+
+That concludes my demonstrations using the `INLA` and `inlabru` software. This may hopefully serve as a useful reference for someone, that someone being at least myself. As can be seen, the INLA modelling approach is quite flexible and can be used to construct all sorts of models. Constructing the model isn't the easiest thing in the world though, and understanding each element can take a while, but the advantage is that once you are comfortable with it, there is a lot that can be done all under the same INLA umbrella. `inlabru` is a lot easier to use than `INLA` but it makes some assumptions under the hood that may be advantageous from a statistical perspective (more efficient, robust), but wave away some of the important complexity and the connection of the software to the method of INLA itself.
 
