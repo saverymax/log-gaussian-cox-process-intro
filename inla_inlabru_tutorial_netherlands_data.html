@@ -646,17 +646,18 @@ dbl  (8): Year, Air Pollution Level, Data Coverage, Verification, Longitude,...
 <div class="sourceCode cell-code" id="cb37"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb37-1"><a href="#cb37-1" aria-hidden="true" tabindex="-1"></a>formula <span class="ot">&lt;-</span> y <span class="sc">~</span> <span class="dv">0</span> <span class="sc">+</span> b0 <span class="sc">+</span> covtemp <span class="sc">+</span> covprec <span class="sc">+</span> <span class="fu">f</span>(s, <span class="at">model =</span> spde)</span>
 <span id="cb37-2"><a href="#cb37-2" aria-hidden="true" tabindex="-1"></a>res <span class="ot">&lt;-</span> <span class="fu">inla</span>(formula, <span class="at">family =</span> <span class="st">"gaussian"</span>,</span>
 <span id="cb37-3"><a href="#cb37-3" aria-hidden="true" tabindex="-1"></a>       <span class="at">data =</span> <span class="fu">inla.stack.data</span>(stk.full),</span>
-<span id="cb37-4"><a href="#cb37-4" aria-hidden="true" tabindex="-1"></a>       <span class="at">control.predictor =</span> <span class="fu">list</span>(<span class="at">compute =</span> <span class="cn">TRUE</span>,</span>
-<span id="cb37-5"><a href="#cb37-5" aria-hidden="true" tabindex="-1"></a>                                <span class="at">A =</span> <span class="fu">inla.stack.A</span>(stk.full)),</span>
-<span id="cb37-6"><a href="#cb37-6" aria-hidden="true" tabindex="-1"></a>       <span class="at">control.compute =</span> <span class="fu">list</span>(<span class="at">return.marginals.predictor =</span> <span class="cn">TRUE</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb37-4"><a href="#cb37-4" aria-hidden="true" tabindex="-1"></a>       <span class="at">control.inla=</span><span class="fu">list</span>(<span class="at">lincomb.derived.correlation.matrix=</span><span class="cn">TRUE</span>),</span>
+<span id="cb37-5"><a href="#cb37-5" aria-hidden="true" tabindex="-1"></a>       <span class="at">control.predictor =</span> <span class="fu">list</span>(<span class="at">compute =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb37-6"><a href="#cb37-6" aria-hidden="true" tabindex="-1"></a>                                <span class="at">A =</span> <span class="fu">inla.stack.A</span>(stk.full)),</span>
+<span id="cb37-7"><a href="#cb37-7" aria-hidden="true" tabindex="-1"></a>       <span class="at">control.compute =</span> <span class="fu">list</span>(<span class="at">return.marginals.predictor =</span> <span class="cn">TRUE</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
-<p>Notice that I am passing a few options to the <code>INLA</code> call. Importantly, <code>control.compute</code>. We have a nice description of the control options at <a href="https://becarioprecario.bitbucket.io/inla-gitbook/ch-INLA.html#sec:controlops" class="uri">https://becarioprecario.bitbucket.io/inla-gitbook/ch-INLA.html#sec:controlops</a>. It controls what quantities are actually computed and returned during the INLA estimation. For example, there are a few different information criteria that it can returned. <code>control.predictor</code> will compute the posterior marginals of the parameters. All the options can be seen with the command <code>inla.set.control.compute.default()</code></p>
+<p>Notice that I am passing a few options to the <code>INLA</code> call. Importantly, <code>control.compute</code>. We have a nice description of the control options at <a href="https://becarioprecario.bitbucket.io/inla-gitbook/ch-INLA.html#sec:controlops" class="uri">https://becarioprecario.bitbucket.io/inla-gitbook/ch-INLA.html#sec:controlops</a>. It controls what quantities are actually computed and returned during the INLA estimation. For example, there are a few different information criteria that it can returned. <code>control.predictor</code> will compute the posterior marginals of the parameters. Also useful is <code>lincomb.derived.correlation.matrix=TRUE</code> or <code>control.fixed = list(correlation.matrix=TRUE)</code> to retrieve the covariance matrix for the fixed effects. All the options can be seen with the command <code>inla.set.control.compute.default()</code></p>
 <p>Once the model is fit, we can inspect the fixed parameters, the estimated latent field, as well as the hyperparameters for the latent field.</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb38"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb38-1"><a href="#cb38-1" aria-hidden="true" tabindex="-1"></a>res<span class="sc">$</span>summary.fixed</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>                mean         sd  0.025quant     0.5quant 0.975quant
-b0      -15.29769449 21.3472625 -57.7595559 -15.17245556 26.4583704
+b0      -15.29769449 21.3472624 -57.7595559 -15.17245556 26.4583704
 covtemp   2.17003514  2.0949918  -1.8002534   2.09513247  6.5392273
 covprec  -0.01550201  0.2034683  -0.4214077  -0.01404086  0.3818577
                 mode          kld
@@ -914,7 +915,7 @@ Likelihoods:
     Predictor: Value ~ .
     Used components: effects[Intercept, covtemp, covprec, f], latent[]
 Time used:
-    Pre = 1.16, Running = 0.679, Post = 0.335, Total = 2.18 
+    Pre = 1.68, Running = 0.699, Post = 0.363, Total = 2.75 
 Fixed effects:
              mean     sd 0.025quant 0.5quant 0.975quant    mode kld
 Intercept -15.298 21.347    -57.760  -15.172     26.458 -15.171   0
