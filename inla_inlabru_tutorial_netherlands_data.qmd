@@ -239,16 +239,16 @@ $$
 \mu_i = \beta_0 + \beta_1 \cdot \text{temp}_i + \beta_2 \cdot \text{prec}_i + S(x_i),
 $$
 so there is some contribution from fixed effects as well as a latent process modelled as a zero-mean Gaussian Random Field with Matern covariance function. This puts us well within INLA territory. The model equation can be seen quite clearly in the `formula` variable below. We include 0 to remove the intercept that is added by default because we specifically refer to $\beta_0$ in the stack and then need to do so in the model equation.
-
 ```{r inla-model}
 formula <- y ~ 0 + b0 + covtemp + covprec + f(s, model = spde)
 res <- inla(formula, family = "gaussian",
        data = inla.stack.data(stk.full),
+       control.inla=list(lincomb.derived.correlation.matrix=TRUE),
        control.predictor = list(compute = TRUE,
                                 A = inla.stack.A(stk.full)),
        control.compute = list(return.marginals.predictor = TRUE))
 ```
-Notice that I am passing a few options to the `INLA` call. Importantly, `control.compute`. We have a nice description of the control options at <https://becarioprecario.bitbucket.io/inla-gitbook/ch-INLA.html#sec:controlops>. It controls what quantities are actually computed and returned during the INLA estimation. For example, there are a few different information criteria that it can returned. `control.predictor` will compute the posterior marginals of the parameters. All the options can be seen with the command `inla.set.control.compute.default()`
+Notice that I am passing a few options to the `INLA` call. Importantly, `control.compute`. We have a nice description of the control options at <https://becarioprecario.bitbucket.io/inla-gitbook/ch-INLA.html#sec:controlops>. It controls what quantities are actually computed and returned during the INLA estimation. For example, there are a few different information criteria that it can returned. `control.predictor` will compute the posterior marginals of the parameters. Also useful is `lincomb.derived.correlation.matrix=TRUE` or `control.fixed = list(correlation.matrix=TRUE)` to retrieve the covariance matrix for the fixed effects. All the options can be seen with the command `inla.set.control.compute.default()`
 
 Once the model is fit, we can inspect the fixed parameters, the estimated latent field, as well as the hyperparameters for the latent field.
 ```{r inspect-fit}

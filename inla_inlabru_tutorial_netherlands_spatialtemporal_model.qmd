@@ -373,8 +373,7 @@ Ap <- inla.spde.make.A(mesh = mesh, loc = coop)
 dim(A)
 dim(Ap)
 ```
-Then we have to make the INLA stack. This is done because we need to combine the data for estimation with the prediction data, as well as the projection matrices. It contains the response data, the list of covariate data--here the temperature and precipitation--the projection matrices, and the indices.
-
+Then we have to make the INLA stack. This is done because we need to combine the data for estimation with the prediction data, as well as the projection matrices. It contains the response data, the list of covariate data--here the temperature and precipitation--the projection matrices, and the indices. In the next section about LGCPs, I'll describe the stack in a some more detail.
 ```{r inla-stack}
 # stack for estimation stk.e
 stk.e <- inla.stack(tag = "est",

@@ -2,7 +2,7 @@
 
 ## LGCP in INLA 
 
-Having completed air pollution modelling in `INLA` and `inlabru`, it is time to move on to the LGCP and the point process model. A couple of resources about point process modelling in INLA include: <https://becarioprecario.bitbucket.io/spde-gitbook/ch-stapp.html#sec:burkitt> and <https://www.paulamoraga.com/book-spatial/point-process-modeling.html>. I'll again be relying on the Moraga book for template code.
+Having completed air pollution modelling in `INLA` and `inlabru`, it is time to move on to the LGCP and the point process model. A couple of online resources about point process modelling in `INLA` include: <https://becarioprecario.bitbucket.io/spde-gitbook/ch-stapp.html#sec:burkitt> and <https://www.paulamoraga.com/book-spatial/point-process-modeling.html>. I'll again be relying on the Moraga book for template code.
 
 The model fit here has intensity specified as 
 $$
@@ -20,6 +20,7 @@ library(viridis)
 library(terra)
 library(dplyr)
 library(readr)
+library(rasterVis)
 ```
 Now for the data. I'll use butterfly data from citizen science observations made in the Netherlands in 2023. The data is available in the GBIF repository <https://doi.org/10.15468/dl.p5cy6n>, which includes all butterfly observations uploaded to observation.org. So it's necessary to filter the dataset down to just the Netherlands. I filter for the species Lasiommata megera. This leaves us with 2705 observations.
 ```{r data}
@@ -27,18 +28,16 @@ file_name <- file.path("D:", "data", "gbif_observation_org_butterflies", "gbif_b
 d <- read_delim(file_name, delim='\t', col_types=cols(infraspecificEpithet=col_character()))
 d %>% filter(species=="Lasiommata megera") -> d
 dim(d)
-sum(is.na(d))
 d <- st_as_sf(d, coords = c("decimalLongitude", "decimalLatitude"))
 st_crs(d) <- "EPSG:4326"
-st_crs("EPSG:3857")$proj4string
 projMercator <- "+proj=merc +a=6378137 +b=6378137 +lat_ts=0 +lon_0=0
 +x_0=0 +y_0=0 +k=1 +units=km +nadgrids=@null +wktext +no_defs"
+projMercator <- st_crs("EPSG:3857")$proj4string
 # Observed coordinates
 d <- st_transform(d, crs = projMercator)
 ```
 Before, I used the Netherlands map directly, but now there is some extra processing to do, due to little isolated boundaries within the main polygon of the Netherlands border.
 ```{r map}
-?st_layers
 layers <- st_layers(file.path("D:", "data", "maps", "netherlands_bestuurlijkegrenzen_2021", "bestuurlijkegrenzen.gpkg"))
 #print(str(layers))
 map <- st_read(file.path("D:", "data", "maps", "netherlands_bestuurlijkegrenzen_2021", "bestuurlijkegrenzen.gpkg"), layer = "landsgrens")
@@ -67,7 +66,7 @@ st_write(map, file.path("D:", "data", "maps", "netherlands_bestuurlijkegrenzen_2
 ```
 So that gives us a very clean map, with the location of Lasiommata megera observations.
 
-As in the previos example for air pollution data, we again create prediction points across the spatial region. These will be the locations at which the intensity is predicted.
+As in the previous example for air pollution data, we again create prediction points across the spatial region. These will be the locations at which the intensity is predicted.
 
 ```{r prediction-locations}
 # raster grid covering map
@@ -94,7 +93,8 @@ Next, build the mesh.
 loc.d <- cbind(st_coordinates(map)[, 1], st_coordinates(map)[, 2])
 #mesh <- inla.mesh.2d(loc=coo, max.edge = c(50000, 100000))
 #mesh <- inla.mesh.2d(loc.domain=loc.d)
-mesh <- inla.mesh.2d(loc.domain = loc.d, max.edge = c(50, 100), crs=crs(d))
+#mesh <- inla.mesh.2d(loc.domain = loc.d, max.edge = c(50, 100), crs=crs(d))
+mesh <- inla.mesh.2d(loc.domain = loc.d, max.edge = c(50000, 100000), crs=crs(d))
 plot(mesh)
 points(coo, col = "red")
 axis(1)
@@ -102,8 +102,9 @@ axis(2)
 (nv <- mesh$n)
 (n <- nrow(coo))
 ```
+Using `spde <- inla.spde2.matern(mesh = mesh, alpha = 2, constr = TRUE)` led to some differences in the `inla` and `INLABRU` models, mainly in that the intercept was quite different between the two. So I started to use the Penalized Complexity priors on the matern function instead:
 ```{r inla-spde}
-spde <- inla.spde2.matern(mesh = mesh, alpha = 2, constr = TRUE)
+spde <- inla.spde2.pcmatern(mesh = mesh, alpha = 2, constr = TRUE, prior.range = c(10, 0.01), prior.sigma = c(1, 0.01))
 ```
 In the point process setting, it is necessary to use the method of @simpson2016. This uses a dual mesh to approximate the point process likelihood. It is called a dual mesh because a mesh of polygons is generated, each centered around the vertices of the triangles in the first mesh. The code to create the dual mesh is available in both the SPDE book and Moraga book.
 ```{r dual-mesh}
@@ -167,19 +168,71 @@ w <- sapply(1:length(dmesh), function(i) {
 })
 sum(w)
 st_area(map)
+
+# Fun little exercise as an alternative way to calculate the weights.
+# dp <- fm_pixels(mesh, dims = c(50, 50), mask = domain_sf)
+# # Project mesh basis functions to pixel locations and multiply by pixel weights (area)
+# # Sum these contributions for each basis function (mesh vertex)
+# A_pixels <- fm_basis(mesh, loc = dp)
+# pixel_weights <- st_area(dp)
+# # Ensure weights are simple numeric vector
+# pixel_weights <- as.numeric(pixel_weights)
+# A_weighted <- Diagonal(length(pixel_weights), pixel_weights) %*% A_pixels
+# w <- Matrix::colSums(A_weighted)
+# w <- as.vector(w)
+# sum(w)
 ```
-That leaves us with a very nice looking mesh, where the black integration points fall within the Netherlands domain and red fall outside of it.
+Notice that the weights and and the area of the domain are the same. 
+
+We can see in the plot below that we are left with a very nice looking mesh, where the black integration points fall within the Netherlands domain and red fall outside of it.
 ```{r plot-mesh}
 plot(mesh)
 plot(domain_sf, add=T, col="green")
 points(mesh$loc[which(w > 0), 1:2], col = "black", pch = 20)
 points(mesh$loc[which(w == 0), 1:2], col = "red", pch = 20)
 ```
-Next, create the `INLA` stack, for both observations and for prediction points.
-```{r inla-matrices}
+Next, create the `INLA` stack, for both observations and for prediction points. In the first section I didn't provide that much detail about the stack, so I'll explain it in more detail here. 
+
+First we create vectors for the observed response and for estimation. `nv` is the number of mesh nodes and `n` is the number of observations, where there will be a 0 for element of length `nv` and a 1 for each of length `n`. `e.pp` will consist of the integration weights `w` of length `nv` and a set of 0s of length `n`. This is for the numerical integration in the LGCP likelihood. Just as in the point process likelihood, we have two components: An intractable integral to be approximated, and a product of point locations.
+```{r y-vec}
 y.pp <- rep(0:1, c(nv, n))
+length(y.pp)
 e.pp <- c(w, rep(0, n))
+length(e.pp)
+```
+Next set up the projection matrix. This will be used to compute the linear predictor, generally written
+$$
+\boldsymbol{\eta} = \boldsymbol{1}\beta_0 + \boldsymbol{Az}.
+$$
+where $\boldsymbol{z}=\{z_1,z_2,,,z_{n_v}\}$ will be the values of the spatial field at the nodes.
+
+In the model here, we have both nodes and observed locations, and the points for prediction. So we can write that all out as
+$$
+\begin{aligned}
+\begin{pmatrix}
+\boldsymbol{\eta}_{node} \\
+\boldsymbol{\eta}_{obs}
+\end{pmatrix} &= 
+\begin{pmatrix}
+\boldsymbol{1}_{n_v}\\
+\boldsymbol{1}_n
+\end{pmatrix}\beta_0 +
+\begin{pmatrix}
+\boldsymbol{A}_{n_v}\\
+\boldsymbol{A}_n
+\end{pmatrix}\boldsymbol{z}\\
+\boldsymbol{\eta}_{npred} &= 
+\boldsymbol{1}_{npred}
+\beta_0 +
+\boldsymbol{A}_{npred}
+\boldsymbol{z}
+\end{aligned}
+$$
+so that there is a response for each component, an intercept for each, and a projection matrix for each. The below code reflects this. Notice that for `A.y` and `A.pp`, we use the function `inla.spde.make.A()`. This function interpolates the values of the spatial field at the observed location using the triangles in the mesh that each location falls within.
+
+```{r a-mat}
 # Projection matrix for the integration points (mesh vertices)
+# It is diagonal here because the values of the mesh vertices are the integration points themselves.
 A.int <- Diagonal(nv, rep(1, nv))
 # Projection matrix for observed points (event locations)
 A.y <- inla.spde.make.A(mesh = mesh, loc = coo)
@@ -189,7 +242,7 @@ A.pp <- rbind(A.int, A.y)
 # We also create the projection matrix Ap.pp for the prediction locations.
 Ap.pp <- inla.spde.make.A(mesh = mesh, loc = coop)
 ```
-
+Then create the stacks themselves. We provide the response and estimation vectors to the `data` argument and the A projection matrices to the `A` argument. The `effect` argument takes the intercept and the index of spatial effects. If we had covariates, this is where we would provide them, also in a list.
 ```{r inla-stacks}
 # stack for estimation
 stk.e.pp <- inla.stack(tag = "est.pp",
@@ -207,20 +260,25 @@ effects = list(data.frame(b0 = rep(1, nrow(coop))),
 # stk.full has stk.e and stk.p
 stk.full.pp <- inla.stack(stk.e.pp, stk.p.pp)
 ```
-Finally, we can fit the model. This looks about the same as in the continuous setting. Notice the different strategy options for both the integration strategy and for the posterior approximation itself. `control.predictor` returns the posterior marginals, with `link=1` using the same link function as given in `family = 'poisson'`.
+Finally, we can fit the model. This looks about the same as in the continuous setting. Notice the different strategy options for both the integration strategy and for the posterior approximation itself. `control.predictor` returns the posterior marginals for the observed and node locations, with `link=1` using the same link function as given in `family = 'poisson'`.
 ```{r lgcp-fit}
-formula <- y ~ 0 + b0 + f(s, model = spde)
+formula <- y ~ -1 + b0 + f(s, model = spde)
 res <- inla(formula,  family = 'poisson',
   data = inla.stack.data(stk.full.pp),
   control.inla=list(int.strategy = 'grid', strategy="laplace"),
   control.predictor = list(compute = TRUE, link = 1,
     A = inla.stack.A(stk.full.pp)),
-    E = inla.stack.data(stk.full.pp)$e)
+    E = inla.stack.data(stk.full.pp)$e,
+  control.fixed=list(prec = 0.001^2))
 ```
 
+We can check the estimate for the intercept, as well as the parameters for the spatial field.
 ```{r check-fit}
 res$summary.fixed
 res$summary.hyperpar
+```
+Then extract the predictions
+```{r inla-pred-lgcp}
 index <- inla.stack.index(stk.full.pp, tag = "pred.pp")$data
 pred_mean <- res$summary.fitted.values[index, "mean"]
 pred_ll <- res$summary.fitted.values[index, "0.025quant"]
@@ -233,38 +291,45 @@ grid$mean[indicespointswithin] <- pred_mean
 grid$ll[indicespointswithin] <- pred_ll
 grid$ul[indicespointswithin] <- pred_ul
 ```
-We can check the estimate for the intercept, as well as the parameters for the spatial field.
-
-Then plot the predicted intensity
+And plot the predicted intensity
 ```{r plot-preds-inla}
-#| eval: false
-plot(grid)
-geom_sf(data=grid, aes(color=mean)) +
-  scale_colour_gradient(low = "blue", high = "yellow")
+#| eval: true
+levelplot(raster::brick(grid), layout = c(3, 1),
+names.attr = c("Mean", "2.5 percentile", "97.5 percentile"))
 ```
-
 
 We have to make sure to get the domain for the sampler correct. The INLA code does it above, but inlabru by default does not.
 
 More about that <https://inlabru-org.github.io/inlabru/articles/2d_lgcp_plotsampling.html>
 and actually the exact problem here: <https://groups.google.com/g/r-inla-discussion-group/c/0bBC9bVV-L4> even though the problem was with preferential sampling. In the mesh-process R section above, you can see the manipulation to get the domains correct for INLA. Even with including ```sampler=domain_sf``` here, the estimates are not exactly the same as INLA, but closer than it was before.
 
-TODO: What is this domain stuff for exactly? The integration? Should be equation 3 of Simpson (2016).
+```{r inlabru-domain}
+ips <- fm_int(
+  domain = list(geometry = mesh),
+  samplers = domain_sf
+)
+
+ggplot() +
+  geom_fm(data = mesh) +
+  gg(ips, aes(size = weight)) +
+  scale_size_area(max_size = 1)
+```
 ```{r inlabru-fit}
 # TODO: Make sure I get the same result as inla. Options and mesh are off
 # Oh nice we can name the intercept but then need to subtract 1 to get rid of the default intercept
-formula_inlabru <- geometry ~ b0(1) - 1 + f(geometry, model = spde)
-fit1 <- lgcp(formula_inlabru, data=d, sampler=domain_sf, domain = list(geometry = mesh), 
-             options = list(control.inla=list(int.strategy = 'ccd', strategy="laplace")))
+formula_inlabru <- geometry ~ -1 + b0(1) + f(geometry, model = spde)
+fit1 <- lgcp(formula_inlabru, data=d, samplers=domain_sf, domain = list(geometry = mesh), 
+             options = list(control.inla=list(int.strategy = 'grid', strategy="laplace"),
+                            control.fixed=list(prec = 0.001^2)))
 #                          control.compute=list(config=TRUE),
 #                          control.results=list(return.marginals.random = TRUE,
 #                                               return.marginals.predictor = TRUE),
 #                          control.predictor = list(compute = TRUE)))
 
 summary(fit1)
+fit1$
 ```
 
-TODO: Oh wow, why is b0 so different between inla and inlabru.
 
 ```{r preds-intensity}
 predictions1 <- predict(fit1, newdata=dp, formula = ~ b0 + f)
@@ -277,7 +342,5 @@ ggplot() +
 geom_sf(data=predictions2, aes(color=mean)) +
   scale_colour_gradient(low = "blue", high = "yellow")
 ```
+That concludes my demonstrations using the `INLA` and `inlabru` software. This may hopefully serve as a useful reference for someone, at least for myself. As can be seen, the INLA modelling approach is quite flexible and can be used to construct all sorts of models. It isn't the simplest approach though, so understanding each element can take a while, but the advantage is that once you are comfortable with it, there is a lot that can be done all under the same INLA umbrella.
 
-
-
-Then, we can move onto multiple likelihoods and inlabru
