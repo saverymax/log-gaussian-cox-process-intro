@@ -7,10 +7,13 @@ Having covered the need-to-know material for INLA and SPDE, next I'm going to bu
 
 The model fit here is a simple geostatistical one. I'll be using air pollution data in the Netherlands. The model can be written as
 $$
-Y_i \sim N(u_i, \sigma^2)\\
+Y_i \sim N(u_i, \sigma^2),
+$$ 
+with mean $\mu_i$ parameterized as 
+$$
 u_i = \beta_0 + \beta_1\cdot\text{temperature}_i + \beta_2\cdot\text{precipitation}_i + S(x_i).
 $$
-So it's a typical Gaussian distributed variable with underlying latent structure $S(x_i)$, otherwise referred to as a random effect modelled as a Gaussian process that is spatially indexed. In either case, it represents measurements taken at discrete locations but used to describe or estimate a spatially continuous process, such as air pollution. 
+So it's a typical Gaussian distributed variable with underlying latent structure $S(x_i)$ that is spatially indexed. It represents measurements taken at discrete locations but used to describe or estimate a spatially continuous process, such as air pollution.
 
 Let's get straight to data downloading and processing. I downloaded air pollution data in the Belgium and Netherlands for the year of 2023 from <https://eeadmz1-downloads-webapp.azurewebsites.net/>. For now I just focus on the Netherlands data.
 ```{r set-up}
@@ -27,7 +30,7 @@ library(dplyr)
 library(stringr)
 library(readr)
 ```
- In the dataset, 8 is the id for	Nitrogen dioxide, 5	Particulate matter < 10 µm, and 6001 for Particulate matter < 2.5 µm. I focused on Particulate matter < 2.5 µm, referred to as PM2.5.
+ In the dataset, 8 is the id for	Nitrogen dioxide, 5	is for Particulate matter < 10 µm, and 6001 for Particulate matter < 2.5 µm. I focused on Particulate matter < 2.5 µm, referred to as PM2.5.
  
 ```{r load-data}
 #data_path <- file.path("D:", "data", "air_quality_data", "belgium_eea", "E1a")
@@ -52,7 +55,7 @@ merged_df <- df %>%
 station_locations_sf <- st_as_sf(station_locations, coords = c("Longitude", "Latitude"))
 air_sf <- st_as_sf(merged_df, coords = c("Longitude", "Latitude"))
 st_crs(air_sf) <- "EPSG:4326"
-air_sf$station_locations
+air_sf$Samplingpoint
 ```
 Then examine the time series
 ```{r plot-time-series}
@@ -141,7 +144,7 @@ ggplot() + geom_sf(data = map) +
   ggtitle("Precipitation at prediction points") +
   scale_color_viridis()
 ```
-Next mean impute out the NANs in the data. A better imputation method would certainly be better, wouldn't it?
+Next, mean impute out the NANs in the data. A better imputation method would certainly be better, wouldn't it?
 ```{r imputation}
 dp <- dp %>% mutate(covprec=ifelse(is.na(covprec), mean(covprec, na.rm=TRUE), covprec),
                     covtemp=ifelse(is.na(covtemp), mean(covtemp, na.rm=TRUE), covtemp))
@@ -152,7 +155,7 @@ ggplot() + geom_sf(data = map) +
   geom_sf(data = dp, aes(col = covprec)) +
   scale_color_viridis()
 ```
-I saw in the INLA forum, <https://groups.google.com/g/r-inla-discussion-group/c/z_v2oIh2egs>, that it can be helpful to work with units of kilometers. In my experience, this has also held true.
+I saw in the INLA forum, <https://groups.google.com/g/r-inla-discussion-group/c/z_v2oIh2egs>, that it can be helpful to work with units of kilometers. In my experience, this has also held true, but it also takes some finagling and mindfulness depending on the data you are working with.
 ```{r projection}
 projMercator<-"+proj=merc +a=6378137 +b=6378137 +lat_ts=0 +lon_0=0
 +x_0=0 +y_0=0 +k=1 +units=km +nadgrids=@null +wktext +no_defs"
@@ -211,7 +214,7 @@ Ap <- inla.spde.make.A(mesh = mesh, loc = coop)
 dim(A)
 dim(Ap)
 ```
-The index allows us to extract fitted values from the model, which has a length equal to the number of vertices in the mesh. `s.group` and `s.repl` (replicate) are related how the dependence structure is specified in the model.
+The index allows us to extract fitted values from the model, which has a length equal to the number of vertices in the mesh. `s.group` and `s.repl` (replicate) are related to how the dependence structure is specified in the model.
 
 Then we have to make the INLA stack. This is done because we need to combine the data for estimation with the prediction data, as well as the projection matrices. It contains the response data, the list of covariate data--here the temperature and precipitation, the projection matrices, and the indices. Though this is a bit technical, it actually adds a lot of flexibility to `INLA` because we can manipulate the stack based on the data structure that we want. For example, when modelling multiple likelihoods in a single model, these will be combined all within the stack.
 ```{r inla-stack}
@@ -292,7 +295,7 @@ marginals.fitted.values
 ```
 but it's a lot of output so I won't show it.
 
-From <https://becarioprecario.bitbucket.io/inla-gitbook/ch-INLA.html#model-fitting-strategies>, we can also see the differences using the different fitting strategies, set by the `control.inla` argument. We can change both the Gaussian approximation strategy for the posterior full conditional distributions, as well as the integration strategy used to integrate out the $\theta_{-k}$ parameters to get the marginal distribution for $\theta_k$. The `"grid"` option is the most costly, compared to the central composite design (`"ccd"`). In the empirical bayes option (`"eb"`), the posterior mode is used as the integration point.
+From <https://becarioprecario.bitbucket.io/inla-gitbook/ch-INLA.html#model-fitting-strategies>, we can also see the differences using the different fitting strategies, set by the `control.inla` argument. We can change both the Gaussian approximation strategy for the posterior full conditional distributions, as well as the integration strategy used to integrate out the $\theta_{-i}$ parameters to get the marginal distribution for $\theta_i$. The `"grid"` option is the most costly, compared to the central composite design (`"ccd"`). In the empirical bayes option (`"eb"`), the posterior mode is used as the integration point.
 
 ```{r fitting strategies}
 approx_strategy <- c("gaussian", "simplified.laplace", "laplace")
@@ -368,7 +371,7 @@ ggplot(new_df_3, aes(x = x, y = y, colour = id)) +
 ```
 So with this data set there is not really much different between estimation methods, regardless of the options used. I suppose that is a good sign?
 
-Another useful feature is the set of functions that can be used to manipulate the marginal distributions: <https://becarioprecario.bitbucket.io/inla-gitbook/ch-INLA.html#sec:marginals. for example,
+Another useful feature is the set of functions that can be used to manipulate the marginal distributions: <https://becarioprecario.bitbucket.io/inla-gitbook/ch-INLA.html#sec:marginals>. for example,
 ```{r marginal}
 inla.mmarginal(res$marginals.fixed$b0)
 plot(res$marginals.fixed$b0, type = "l", xlab = "b0", ylab = "Density")
@@ -402,6 +405,6 @@ ggplot() +
 geom_sf(data=predictions2, aes(color=mean)) +
   scale_colour_gradient(low = "blue", high = "yellow")
 ```
-Looks very nice. Of course, there are a lot more diagnostics we could consider, including looking at the posterior distributions of all parameters and hyperparameters and checking the information criteria. We could also consider the effect of setting priors on the SPDE parameters. This will end up making a difference for more complex models. I could also simulate data and see how well INLA recovers the parameters. There is also fitting a temporal model in both packages. 
+Looks very nice. Of course, there are a lot more diagnostics we could consider, including looking at the posterior distributions of all parameters and hyperparameters and checking the information criteria. We could also consider the effect of setting priors on the SPDE parameters. This will end up making a difference for more complex models. I could also simulate data and see how well INLA recovers the parameters. There is also the matter of fitting a temporal model in both packages. 
 
 But for now, that concludes this section, showing how to fit spatial model in `INLA` and `inlabru`. The next section shows how to do this for a point process.

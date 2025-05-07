@@ -22,7 +22,9 @@ library(dplyr)
 library(readr)
 library(rasterVis)
 ```
-Now for the data. I'll use butterfly data from citizen science observations made in the Netherlands in 2023. The data is available in the GBIF repository <https://doi.org/10.15468/dl.p5cy6n>, which includes all butterfly observations uploaded to observation.org. So it's necessary to filter the dataset down to just the Netherlands. I filter for the species Lasiommata megera. This leaves us with 2705 observations.
+Now for the data. I'll use butterfly data from citizen science observations made in the Netherlands in 2023. The data is available in the GBIF repository <https://doi.org/10.15468/dl.p5cy6n>, which includes all butterfly observations uploaded to observation.org. So it's necessary to filter the dataset down to just the Netherlands. I filter for the species Lasiommata megera. Here is a nice picture (Charles J. Sharp - Own work, from Sharp Photography, sharpphotography.co.uk, CC BY-SA 4.0, <https://commons.wikimedia.org/w/index.php?curid=81510351>):
+![Lasiommata megera](figures/Lasiommata_megera_male_Italy.jpg){width="50%"}
+
 ```{r data}
 file_name <- file.path("D:", "data", "gbif_observation_org_butterflies", "gbif_butterfly_observation-org", "gbif_subset_netherlands_lepidoptera.csv")
 d <- read_delim(file_name, delim='\t', col_types=cols(infraspecificEpithet=col_character()))
@@ -36,6 +38,8 @@ projMercator <- st_crs("EPSG:3857")$proj4string
 # Observed coordinates
 d <- st_transform(d, crs = projMercator)
 ```
+Once the filtering is done, we are left with 2705 observations.
+
 Before, I used the Netherlands map directly, but now there is some extra processing to do, due to little isolated boundaries within the main polygon of the Netherlands border.
 ```{r map}
 layers <- st_layers(file.path("D:", "data", "maps", "netherlands_bestuurlijkegrenzen_2021", "bestuurlijkegrenzen.gpkg"))
@@ -169,11 +173,10 @@ w <- sapply(1:length(dmesh), function(i) {
 
 # Fun little exercise as an alternative way to calculate the weights.
 # dp <- fm_pixels(mesh, dims = c(50, 50), mask = domain_sf)
-# # Project mesh basis functions to pixel locations and multiply by pixel weights (area)
-# # Sum these contributions for each basis function (mesh vertex)
+# # Project mesh basis functions to pixel locations and multiply by pixel weights 
+# # Sum these contributions for each basis function 
 # A_pixels <- fm_basis(mesh, loc = dp)
 # pixel_weights <- st_area(dp)
-# # Ensure weights are simple numeric vector
 # pixel_weights <- as.numeric(pixel_weights)
 # A_weighted <- Diagonal(length(pixel_weights), pixel_weights) %*% A_pixels
 # w <- Matrix::colSums(A_weighted)
@@ -194,7 +197,7 @@ points(mesh$loc[which(w == 0), 1:2], col = "red", pch = 20)
 ```
 Next, create the `INLA` stack, for both observations and for prediction points. In the first section I didn't provide that much detail about the stack, so I'll explain it in more detail here. 
 
-First we create vectors for the observed response and for estimation. `nv` is the number of mesh nodes and `n` is the number of observations, where there will be a 0 for element of length `nv` and a 1 for each of length `n`. `e.pp` will consist of the integration weights `w` of length `nv` and a set of 0s of length `n`. This is for the numerical integration in the LGCP likelihood. Just as in the point process likelihood, we have two components: An intractable integral to be approximated, and a product of point locations: 
+First we create vectors for the observed response and for estimation. `nv` is the number of mesh nodes and `n` is the number of observations, where there will be a 0 for each element of length `nv` and a 1 for each of length `n`. `e.pp` will consist of the integration weights `w` of length `nv` and a set of 0s of length `n`. This is for the numerical integration in the LGCP likelihood. Just as in the point process likelihood, we have two components: An intractable integral to be approximated, and a product of point locations: 
 $$
 L(\lambda)\propto\prod_iλ(s_i​)\exp\left(−\int_D\lambda(s)ds\right)
 $$
@@ -235,12 +238,12 @@ $$
 so that there is a response for each component, an intercept for each, and a projection matrix for each. The below code reflects this. Notice that for `A.y` and `A.pp`, we use the function `inla.spde.make.A()`. This function interpolates the values of the spatial field at the observed location using the triangles in the mesh that each location falls within.
 
 ```{r a-mat}
-# Projection matrix for the integration points (mesh vertices)
+# Projection matrix for the integration points 
 # It is diagonal here because the values of the mesh vertices are the integration points themselves.
 A.int <- Diagonal(nv, rep(1, nv))
-# Projection matrix for observed points (event locations)
+# matrix for observed points 
 A.y <- inla.spde.make.A(mesh = mesh, loc = coo)
-# Projection matrix for mesh vertices and event locations
+# matrix for mesh vertices and locations
 A.pp <- rbind(A.int, A.y)
 
 # We also create the projection matrix Ap.pp for the prediction locations.
@@ -264,7 +267,7 @@ effects = list(data.frame(b0 = rep(1, nrow(coop))),
 # stk.full has stk.e and stk.p
 stk.full.pp <- inla.stack(stk.e.pp, stk.p.pp)
 ```
-Finally, we can fit the model. This looks about the same as in the continuous setting. Notice the different strategy options for both the integration strategy and for the posterior approximation itself. `control.predictor` returns the posterior marginals for the observed and node locations, with `link=1` using the same link function as given in `family = 'poisson'`. 
+Finally, we can fit the model. This looks about the same as in the continuous setting. Notice the different strategy options for both the integration strategy and for the posterior approximation itself. `control.predictor` returns the posterior marginals for the observed and node locations, with `link=1` using the same link function as given in `family = 'poisson'` earlier. 
 ```{r lgcp-fit}
 formula <- y ~ -1 + b0 + f(s, model = spde)
 res <- inla(formula,  family = 'poisson',
@@ -303,11 +306,8 @@ levelplot(raster::brick(grid), layout = c(3, 1),
 names.attr = c("Mean", "2.5 percentile", "97.5 percentile"))
 ```
 
-We have to make sure to get the domain for the sampler correct. The INLA code does it above, but inlabru by default does not.
-
-More about that <https://inlabru-org.github.io/inlabru/articles/2d_lgcp_plotsampling.html>
+We have to make sure to get the domain for the sampler correct. The INLA code does it above, but inlabru by default does not. More about that here <https://inlabru-org.github.io/inlabru/articles/2d_lgcp_plotsampling.html>
 and actually the exact problem here: <https://groups.google.com/g/r-inla-discussion-group/c/0bBC9bVV-L4> even though the problem was with preferential sampling. In the mesh-process R section above, you can see the manipulation to get the domains correct for INLA. Even with including ```sampler=domain_sf``` here, the estimates are not exactly the same as INLA, but closer than it was before.
-
 ```{r inlabru-domain}
 ips <- fm_int(
   domain = list(geometry = mesh),
@@ -319,22 +319,16 @@ ggplot() +
   gg(ips, aes(size = weight)) +
   scale_size_area(max_size = 1)
 ```
+
+Then fit the ```inlabru``` model and check the summary output:
 ```{r inlabru-fit}
-# TODO: Make sure I get the same result as inla. Options and mesh are off
-# Oh nice we can name the intercept but then need to subtract 1 to get rid of the default intercept
 formula_inlabru <- geometry ~ -1 + b0(1) + f(geometry, model = spde)
 fit1 <- lgcp(formula_inlabru, data=d, samplers=domain_sf, domain = list(geometry = mesh), 
              options = list(control.inla=list(int.strategy = 'grid', strategy="laplace"),
                             control.fixed=list(prec = 0.001^2)))
-#                          control.compute=list(config=TRUE),
-#                          control.results=list(return.marginals.random = TRUE,
-#                                               return.marginals.predictor = TRUE),
-#                          control.predictor = list(compute = TRUE)))
-
 summary(fit1)
 ```
-
-
+We can again make predictions across the domain, using the generated prediction points.  
 ```{r preds-intensity}
 predictions1 <- predict(fit1, newdata=dp, formula = ~ b0 + f)
 predictions2 <- predict(fit1, newdata=dp, formula = ~ f)
@@ -347,5 +341,5 @@ geom_sf(data=predictions2, aes(color=mean)) +
   scale_colour_gradient(low = "blue", high = "yellow")
 ```
 
-That concludes my demonstrations using the `INLA` and `inlabru` software. This may hopefully serve as a useful reference for someone, that someone being at least myself. As can be seen, the INLA modelling approach is quite flexible and can be used to construct all sorts of models. Constructing the model isn't the easiest thing in the world though, and understanding each element can take a while, but the advantage is that once you are comfortable with it, there is a lot that can be done all under the same INLA umbrella. `inlabru` is a lot easier to use than `INLA` but it makes some assumptions under the hood that may be advantageous from a statistical perspective (more efficient, robust), but wave away some of the important complexity and the connection of the software to the method of INLA itself.
+That concludes my demonstrations using the `INLA` and `inlabru` software. This may hopefully serve as a useful reference for someone, that someone being at least myself. As can be seen, the INLA modelling approach is quite flexible and can be used to construct all sorts of models. Constructing the model isn't the easiest thing in the world though, and understanding each element can take a while. But the advantage is that once you are comfortable with it, there is a lot that can be done all under the same INLA umbrella. `inlabru` is a lot easier to use than `INLA` but it makes some assumptions under the hood that may be advantageous from a statistical perspective (more efficient, robust), but wave away some of the important complexity and the connection of the software to the method of INLA itself. In the end, this blog post was more about INLA than it was about LGCPs, but one begets the other and so it was the natural order of things.
 

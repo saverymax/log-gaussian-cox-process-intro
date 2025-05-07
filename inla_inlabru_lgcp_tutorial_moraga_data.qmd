@@ -206,16 +206,11 @@ pred_ll <- res$summary.fitted.values[index, "0.025quant"]
 pred_ul <- res$summary.fitted.values[index, "0.975quant"]
 ```
 
+Something important technically: We have to make sure to get the domain for the sampler correct in `inlabru` correct. More about that here <https://inlabru-org.github.io/inlabru/articles/2d_lgcp_plotsampling.html>
+and actually the exact problem here: <https://groups.google.com/g/r-inla-discussion-group/c/0bBC9bVV-L4>. We can set the domain with `sampler=domain_sf`.
 
-We have to make sure to get the domain for the sampler correct. The INLA code does it above, but inlabru by default does not.
-
-More about that <https://inlabru-org.github.io/inlabru/articles/2d_lgcp_plotsampling.html>
-and actually the exact problem here: <https://groups.google.com/g/r-inla-discussion-group/c/0bBC9bVV-L4> even though the problem was with preferential sampling. In the mesh-process R section above, you can see the manipulation to get the domains correct for INLA. Even with including ```sampler=domain_sf``` here, the estimates are not exactly the same as INLA, but closer than it was before.
-
-TODO: What is this domain stuff for exactly? The integration? Should be equation 3 of Simpson (2016).
 ```{r inlabru-fit}
-# TODO: Make sure I get the same result as inla. Options and mesh are off
-# Oh nice we can name the intercept but then need to subtract 1 to get rid of the default intercept
+# we can name the intercept but then need to subtract 1 to get rid of the default intercept
 formula_inlabru <- geometry ~ b0(1) - 1 + f(geometry, model = spde)
 crs(domain_sf)
 fit1 <- lgcp(formula_inlabru, data=d, sampler=domain_sf, domain = list(geometry = mesh), 

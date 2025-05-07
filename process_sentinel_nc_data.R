@@ -8,7 +8,6 @@ library(tidyterra)
 library(lubridate)
 library(gganimate)
 
-#TODO: 1-14-2025. Oh, this isn't easy
 nl_map <- st_read(file.path("D:", "data", "maps", "netherlands_bestuurlijkegrenzen_2021", "clean_nl_boundary.gpkg"))
 plot(nl_map)
 # Transform to coords

@@ -466,27 +466,24 @@ BOUNDCRS[
 <div class="sourceCode cell-code" id="cb45"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb45-1"><a href="#cb45-1" aria-hidden="true" tabindex="-1"></a>res<span class="sc">$</span>summary.fixed</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>        mean       sd 0.025quant  0.5quant 0.975quant      mode          kld
-b0 -11.77246 1.169185  -14.42348 -11.44364  -10.14814 -10.99471 1.433276e-05</code></pre>
+b0 -11.77234 1.168912  -14.42161 -11.44364  -10.14814 -10.99475 1.430507e-05</code></pre>
 </div>
 <div class="sourceCode cell-code" id="cb47"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb47-1"><a href="#cb47-1" aria-hidden="true" tabindex="-1"></a>res<span class="sc">$</span>summary.hyperpar</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>                  mean        sd 0.025quant  0.5quant 0.975quant      mode
-Theta1 for s  2.309825 0.1052230   2.105094  2.309002   2.519395  2.305532
-Theta2 for s -4.608415 0.2154747  -5.051623 -4.601971  -4.204223 -4.572900</code></pre>
+Theta1 for s  2.309826 0.1052168   2.105107  2.309003   2.519384  2.305533
+Theta2 for s -4.608431 0.2154905  -5.051676 -4.601987  -4.204214 -4.572907</code></pre>
 </div>
 <div class="sourceCode cell-code" id="cb49"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb49-1"><a href="#cb49-1" aria-hidden="true" tabindex="-1"></a>index <span class="ot">&lt;-</span> <span class="fu">inla.stack.index</span>(stk.full.pp, <span class="at">tag =</span> <span class="st">"pred.pp"</span>)<span class="sc">$</span>data</span>
 <span id="cb49-2"><a href="#cb49-2" aria-hidden="true" tabindex="-1"></a>pred_mean <span class="ot">&lt;-</span> res<span class="sc">$</span>summary.fitted.values[index, <span class="st">"mean"</span>]</span>
 <span id="cb49-3"><a href="#cb49-3" aria-hidden="true" tabindex="-1"></a>pred_ll <span class="ot">&lt;-</span> res<span class="sc">$</span>summary.fitted.values[index, <span class="st">"0.025quant"</span>]</span>
 <span id="cb49-4"><a href="#cb49-4" aria-hidden="true" tabindex="-1"></a>pred_ul <span class="ot">&lt;-</span> res<span class="sc">$</span>summary.fitted.values[index, <span class="st">"0.975quant"</span>]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
-<p>We have to make sure to get the domain for the sampler correct. The INLA code does it above, but inlabru by default does not.</p>
-<p>More about that <a href="https://inlabru-org.github.io/inlabru/articles/2d_lgcp_plotsampling.html" class="uri">https://inlabru-org.github.io/inlabru/articles/2d_lgcp_plotsampling.html</a> and actually the exact problem here: <a href="https://groups.google.com/g/r-inla-discussion-group/c/0bBC9bVV-L4" class="uri">https://groups.google.com/g/r-inla-discussion-group/c/0bBC9bVV-L4</a> even though the problem was with preferential sampling. In the mesh-process R section above, you can see the manipulation to get the domains correct for INLA. Even with including <code>sampler=domain_sf</code> here, the estimates are not exactly the same as INLA, but closer than it was before.</p>
-<p>TODO: What is this domain stuff for exactly? The integration? Should be equation 3 of Simpson (2016).</p>
+<p>Something important technically: We have to make sure to get the domain for the sampler correct in <code>inlabru</code> correct. More about that here <a href="https://inlabru-org.github.io/inlabru/articles/2d_lgcp_plotsampling.html" class="uri">https://inlabru-org.github.io/inlabru/articles/2d_lgcp_plotsampling.html</a> and actually the exact problem here: <a href="https://groups.google.com/g/r-inla-discussion-group/c/0bBC9bVV-L4" class="uri">https://groups.google.com/g/r-inla-discussion-group/c/0bBC9bVV-L4</a>. We can set the domain with <code>sampler=domain_sf</code>.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb50"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb50-1"><a href="#cb50-1" aria-hidden="true" tabindex="-1"></a><span class="co"># </span><span class="al">TODO</span><span class="co">: Make sure I get the same result as inla. Options and mesh are off</span></span>
-<span id="cb50-2"><a href="#cb50-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Oh nice we can name the intercept but then need to subtract 1 to get rid of the default intercept</span></span>
-<span id="cb50-3"><a href="#cb50-3" aria-hidden="true" tabindex="-1"></a>formula_inlabru <span class="ot">&lt;-</span> geometry <span class="sc">~</span> <span class="fu">b0</span>(<span class="dv">1</span>) <span class="sc">-</span> <span class="dv">1</span> <span class="sc">+</span> <span class="fu">f</span>(geometry, <span class="at">model =</span> spde)</span>
-<span id="cb50-4"><a href="#cb50-4" aria-hidden="true" tabindex="-1"></a><span class="fu">crs</span>(domain_sf)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb50"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb50-1"><a href="#cb50-1" aria-hidden="true" tabindex="-1"></a><span class="co"># we can name the intercept but then need to subtract 1 to get rid of the default intercept</span></span>
+<span id="cb50-2"><a href="#cb50-2" aria-hidden="true" tabindex="-1"></a>formula_inlabru <span class="ot">&lt;-</span> geometry <span class="sc">~</span> <span class="fu">b0</span>(<span class="dv">1</span>) <span class="sc">-</span> <span class="dv">1</span> <span class="sc">+</span> <span class="fu">f</span>(geometry, <span class="at">model =</span> spde)</span>
+<span id="cb50-3"><a href="#cb50-3" aria-hidden="true" tabindex="-1"></a><span class="fu">crs</span>(domain_sf)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>[1] "BOUNDCRS[\n    SOURCECRS[\n        PROJCRS[\"unknown\",\n            BASEGEOGCRS[\"unknown\",\n                DATUM[\"Unknown based on GRS 1980 ellipsoid using towgs84=0,0,0,0,0,0,0\",\n                    ELLIPSOID[\"GRS 1980\",6378137,298.257222101,\n                        LENGTHUNIT[\"metre\",1],\n                        ID[\"EPSG\",7019]]],\n                PRIMEM[\"Greenwich\",0,\n                    ANGLEUNIT[\"degree\",0.0174532925199433],\n                    ID[\"EPSG\",8901]]],\n            CONVERSION[\"UTM zone 19S\",\n                METHOD[\"Transverse Mercator\",\n                    ID[\"EPSG\",9807]],\n                PARAMETER[\"Latitude of natural origin\",0,\n                    ANGLEUNIT[\"degree\",0.0174532925199433],\n                    ID[\"EPSG\",8801]],\n                PARAMETER[\"Longitude of natural origin\",-69,\n                    ANGLEUNIT[\"degree\",0.0174532925199433],\n                    ID[\"EPSG\",8802]],\n                PARAMETER[\"Scale factor at natural origin\",0.9996,\n                    SCALEUNIT[\"unity\",1],\n                    ID[\"EPSG\",8805]],\n                PARAMETER[\"False easting\",500000,\n                    LENGTHUNIT[\"metre\",1],\n                    ID[\"EPSG\",8806]],\n                PARAMETER[\"False northing\",10000000,\n                    LENGTHUNIT[\"metre\",1],\n                    ID[\"EPSG\",8807]],\n                ID[\"EPSG\",17019]],\n            CS[Cartesian,2],\n                AXIS[\"(E)\",east,\n                    ORDER[1],\n                    LENGTHUNIT[\"kilometre\",1000,\n                        ID[\"EPSG\",9036]]],\n                AXIS[\"(N)\",north,\n                    ORDER[2],\n                    LENGTHUNIT[\"kilometre\",1000,\n                        ID[\"EPSG\",9036]]]]],\n    TARGETCRS[\n        GEOGCRS[\"WGS 84\",\n            DATUM[\"World Geodetic System 1984\",\n                ELLIPSOID[\"WGS 84\",6378137,298.257223563,\n                    LENGTHUNIT[\"metre\",1]]],\n            PRIMEM[\"Greenwich\",0,\n                ANGLEUNIT[\"degree\",0.0174532925199433]],\n            CS[ellipsoidal,2],\n                AXIS[\"geodetic latitude (Lat)\",north,\n                    ORDER[1],\n                    ANGLEUNIT[\"degree\",0.0174532925199433]],\n                AXIS[\"geodetic longitude (Lon)\",east,\n                    ORDER[2],\n                    ANGLEUNIT[\"degree\",0.0174532925199433]],\n            ID[\"EPSG\",4326]]],\n    ABRIDGEDTRANSFORMATION[\"Transformation from unknown to WGS84\",\n        METHOD[\"Position Vector transformation (geog2D domain)\",\n            ID[\"EPSG\",9606]],\n        PARAMETER[\"X-axis translation\",0,\n            ID[\"EPSG\",8605]],\n        PARAMETER[\"Y-axis translation\",0,\n            ID[\"EPSG\",8606]],\n        PARAMETER[\"Z-axis translation\",0,\n            ID[\"EPSG\",8607]],\n        PARAMETER[\"X-axis rotation\",0,\n            ID[\"EPSG\",8608]],\n        PARAMETER[\"Y-axis rotation\",0,\n            ID[\"EPSG\",8609]],\n        PARAMETER[\"Z-axis rotation\",0,\n            ID[\"EPSG\",8610]],\n        PARAMETER[\"Scale difference\",1,\n            ID[\"EPSG\",8611]]]]"</code></pre>
 </div>
@@ -512,7 +509,7 @@ Likelihoods:
     Predictor: geometry ~ .
     Used components: effects[b0, f], latent[]
 Time used:
-    Pre = 0.699, Running = 9.17, Post = 0.576, Total = 10.4 
+    Pre = 0.896, Running = 10.6, Post = 0.693, Total = 12.2 
 Fixed effects:
       mean    sd 0.025quant 0.5quant 0.975quant    mode kld
 b0 -11.796 1.201    -14.595   -11.45     -10.16 -10.998   0
@@ -526,12 +523,12 @@ Model hyperparameters:
 Theta1 for f  2.31 0.105       2.11     2.31       2.52  2.31
 Theta2 for f -4.61 0.215      -5.05    -4.60      -4.21 -4.57
 
-Deviance Information Criterion (DIC) ...............: -4522.71
+Deviance Information Criterion (DIC) ...............: -4522.69
 Deviance Information Criterion (DIC, saturated) ....: NA
 Effective number of parameters .....................: -5369.13
 
-Watanabe-Akaike information criterion (WAIC) ...: 3095.68
-Effective number of parameters .................: 1195.71
+Watanabe-Akaike information criterion (WAIC) ...: 3095.75
+Effective number of parameters .................: 1195.74
 
 Marginal log-Likelihood:  -3249.96 
  is computed 

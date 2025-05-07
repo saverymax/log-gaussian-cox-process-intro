@@ -4,7 +4,7 @@
 
 A Poisson point process is a stochastic set of points indexed in a bounded n-dimensional space, where the number of points in the set is a Poisson distributed random variable. The LGCP extends the process by explicitly incorporating spatial or temporal correlation into the definition of the intensity of the process. @diggle_spatial_2013 is a good reference for these type of models. I'll give some details below, and then discuss the INLA approach for actually estimating the model. 
 
-The Poisson Point Process is characterized by an intensity that can be defined as the expected number of observations per unit area. For a given region $A$, the number of individuals occurring within the region will be Poisson distributed. The mean of the distribution can be defined by the integral of the intensity over the region:
+The NHPP is characterized by an intensity that can be defined as the expected number of observations per unit area. For a given region $A$, the number of individuals occurring within the region will be Poisson distributed. The mean of the distribution can be defined by the integral of the intensity over the region:
 $$
 \Delta(A) = \int_A \lambda(s)ds
 $$
@@ -20,7 +20,7 @@ $$
 $$
 The spatial effect is denoted as $f_s(s)$ in order to distinguish from temporal contributions. $f_s(s)$ can be thought of as a continuous spatial effect that is evaluated at certain locations. 
 
-The main thing is that, once we incorporate $f_s(s)$, we are forced to use a covariance structure that depends on the resolution of the grid or mesh that will be used to approximate the continuous spatial effect. Furthermore, we are still stuck with the problem of an intractable integral in the likelihood of the LGCP (as in the case of the Poisson process). Thus, the computational complexity makes this approach prohibitively costly when using MCMC approaches to estimate the model in any region of practical interest. Hence, other approximations to the posterior of the parameters in the LGCP is necessary.
+The main thing is that, once we incorporate $f_s(s)$, we are forced to use a covariance structure that depends on the resolution of the grid or mesh that will be used to approximate the continuous spatial effect. Furthermore, we are still stuck with the problem of an intractable integral in the likelihood of the LGCP (as in the case of the Poisson process). Thus, the computational complexity makes this approach prohibitively costly when using MCMC approaches to estimate the model in any region of practical interest. Hence, other approximations to the posterior of the parameters in the LGCP are necessary.
 
 ## INLA
 
@@ -28,14 +28,14 @@ The Integrated Nested Laplace Approximation has been proposed by @rue2009 as a f
 
 1. <https://becarioprecario.bitbucket.io/spde-gitbook> really has a lot of detail, specifically for the SPDE innovation to INLA. 
 2. <https://becarioprecario.bitbucket.io/inla-gitbook/ch-INLA.html> is also good for focusing just on INLA.
-3. The book of Paula Moraga <https://www.paulamoraga.com/book-spatial/sec-geostatisticaldataSPDE.html> is concise and clear for an initial tutorial, though not a detailed.
+3. The book of Paula Moraga <https://www.paulamoraga.com/book-spatial/sec-geostatisticaldataSPDE.html> is concise and clear for an initial tutorial, though not as detailed.
 4. This book is also a very good resource: Spatial and Spatio-temporal Bayesian Models with R-INLA. Blangiardo, Marta, and Michela Cameletti. 2015.
 
 There is nothing new under the sun here. I'm just condensing some resources for my own reference. So, taking notation directly from the Rue paper, INLA is concerned with models with an additive predictor that takes the general form 
 $$
 \eta_i = \alpha + \sum^{n_f}_{j=1}f^{(j)}(u_{ij}) + \sum^{n_{\beta}}_{k=1} \beta_kz_{ki} + \epsilon_i
 $$
-where $\alpha$ is an intercept, $f$ are unknown functions of $\mathbf{u}$, $\beta$ are the typical fixed effects for covariates $\mathbf{z}$, and $\epsilon_i$ is the additional noise in the process. Additionally, $\mathbf{x}$ will refer to the vector of latent Gaussian variables (Gaussian by definition of the prior), and $\boldsymbol{\theta}$ the vector of hyperparameters that we usually deal with in a Bayesian model. These need not be inherently Gaussian. In the book of @blangiardo2015book, hyperparameters and latent field are denoted by $\psi$ and $\theta$ respectively, which is clearer than using $\mathbf{x}$ to describe the latent field, but here I'm sticking to the original notation.
+where $\alpha$ is an intercept, $f$ are unknown functions of $\mathbf{u}$, $\beta$ are the typical fixed effects for covariates $\mathbf{z}$, and $\epsilon_i$ is the additional noise in the process. Additionally, $\mathbf{x}$ will refer to the vector of latent Gaussian variables (Gaussian by definition of the prior), and $\boldsymbol{\theta}$ the vector of hyperparameters that we usually deal with in a Bayesian model. These need not be inherently Gaussian. In the book of @blangiardo2015book, the hyperparameters and latent field are denoted by $\psi$ and $\theta$ respectively, which is clearer than using $\mathbf{x}$ to describe the latent field, but here I'm sticking to the original notation.
 
 Still taking from the notation of the Rue paper, the joint posterior of hyperparameters and latent variables is written as
 $$
@@ -60,7 +60,7 @@ Following the procedure of INLA, first $\pi(\theta|y)$ will need to be approxima
 $$
 \tilde{\pi}(\theta|y) \propto \frac{\pi(x,\theta,y)}{\tilde{\pi}_G(x|\theta,y)}\bigg|_{x=x^*(\theta)} = \frac{\pi(y|x,\theta)\pi(x|\theta)\pi(\theta)}{\tilde{\pi}_G(x|\theta,y)}\bigg|_{x=x^*(\theta)},
 $$
-where $x=x^*(\theta)$ of is the mode of $\tilde{\pi}_G(x|\theta,y)$. As per the name, IN(ested)LA, this approximation uses a NESTED approximation, $\tilde{\pi}_G(x|\theta,y)$. $\tilde{\pi}_G$ is the Gaussian approximation to the latent field, which works because we already know the latent field to be prior-ly distributed as Gaussian. In fact, the contribution of this paper is to then to improve on the approximation of $\pi(x_i|, \theta, y)$ with another approximation, the Laplace Approximation (LA), beyond just a simple Gaussian. The paper discusses 3 approximations to $\pi(x_i|\theta, y)$: the Gaussian, LA, and a simplified LA.
+where $x^*(\theta)$ refers to the mode of $\tilde{\pi}_G(x|\theta,y)$. As per the name, IN(ested)LA, this approximation uses a NESTED approximation, $\tilde{\pi}_G(x|\theta,y)$. $\tilde{\pi}_G$ is the Gaussian approximation to the latent field, which works because we already know the latent field to be prior-ly distributed as Gaussian. In fact, the contribution of this paper is to then to improve on the approximation of $\pi(x_i|\theta, y)$ with another approximation, the Laplace Approximation (LA), beyond just a simple Gaussian. The paper discusses 3 approximations to $\pi(x_i|\theta, y)$: the Gaussian, LA, and a simplified LA.
 
 The LA approximation is written as
 $$
@@ -75,7 +75,7 @@ $$
 $$
 for integration points $\theta^{(i)}$ which are found by the exploration of the posterior for $\theta$. This is done in a few different ways, for example by creating a standardized $Z$ variable around the mode and inverse hessian of $\log \tilde{\pi}(\theta|y)$. There are quite a few more details to this part that I won't discuss here, but may come up when up using the INLA software itself (choosing the integration scheme, for instance).
 
-Again, from the math above it is not possible to fully understand the INLA approach, but it should enough of a technical description to understand the main ideas (approximate the hyperparameters and latent conditionals, then numerically integrate to approximate the marginals). 
+Math above it is not possible to fully understand the INLA approach, but it should enough of a technical description to understand the main ideas (approximate the hyperparameters and latent conditionals, then numerically integrate to approximate the marginals). 
 
 
 ## SPDE connection
@@ -94,7 +94,7 @@ where $w_k$ are Gaussian weights and $\psi_k$ are the piecewise linear basis fun
 
 The practical implication of this the SPDE approach is that you will need to define the mesh before modelling. The results will be sensitive to this choice, so it is important to explore the impact of the mesh on the model estimation. I'll show this a little once I get to the coding.
 
-In INLA software, a projection matrix maps the GMRF from the observations to the triangulation nodes. The observation will be represented as the weighted average using the weights and values from the triangulation and projection matrix. For example, in the picture below, for observation $s$ the value Z$(s)$ is calculated as $Z(s)\approx \frac{T_1}{T}Z_1+\frac{T_2}{T}Z_2+\frac{T_3}{T}Z_3$. This is taken from <https://www.paulamoraga.com/book-spatial/sec-geostatisticaldataSPDE.html>
+In INLA software, a projection matrix maps the GMRF from the observations to the triangulation nodes. The observation will be represented as the weighted average using the weights and values from the triangulation and projection matrix. For example, in the picture below, for observation $s$ the value Z$(s)$ is calculated as $Z(s)\approx \frac{T_1}{T}Z_1+\frac{T_2}{T}Z_2+\frac{T_3}{T}Z_3$. This figure is taken from <https://www.paulamoraga.com/book-spatial/sec-geostatisticaldataSPDE.html>
 ![Weighted average](figures/moraga_image.png){width="50%"}
 
 ### Off the grid
@@ -103,7 +103,7 @@ In INLA software, a projection matrix maps the GMRF from the observations to the
 $$
 Z(s) = \sum^n_{i=1}z_i\phi_i(s)
 $$
-where $z=(z_1...,z_n)^T$ is a multivariate Gaussian vector and $\{\phi_i(s)\}^n_{i=1}$ is a set of basis functions. Using the random field, they propose an approximation to the LGCP that does not rely on the discretization of the domain into a grid. Furthermore, they are able to leverage the triangulation of the SPDE approach to compute the LGCP likelihood when using their  random field approximation. The implication of this for our LGCP modelling is that the INLA framework can conveniently be used approximate the LGCP likelihood and posterior.
+where $z=(z_1...,z_n)^T$ is a multivariate Gaussian vector and $\{\phi_i(s)\}^n_{i=1}$ is a set of basis functions. Using the random field, they propose an approximation to the LGCP that does not rely on the discretization of the domain into a grid. Furthermore, they are able to leverage the triangulation of the SPDE approach to compute the LGCP likelihood when using their  random field approximation. The implication of this for our LGCP modelling is that the INLA framework can conveniently be used approximate to the LGCP likelihood and posterior.
 
 ## In conclusion...
 
