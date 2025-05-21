@@ -2,7 +2,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
 
 <meta charset="utf-8">
-<meta name="generator" content="quarto-1.7.30">
+<meta name="generator" content="quarto-1.7.31">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
@@ -93,10 +93,10 @@ div.csl-indent {
 <script src="site_libs/quarto-html/tippy.umd.min.js"></script>
 <script src="site_libs/quarto-html/anchor.min.js"></script>
 <link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
-<link href="site_libs/quarto-html/quarto-syntax-highlighting-de070a7b0ab54f8780927367ac907214.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-e1a5c8363afafaef2c763b6775fbf3ca.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="site_libs/bootstrap/bootstrap-1bc3b17e7a2c2828f435aa750fb76336.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="site_libs/bootstrap/bootstrap-6e4858b4921ffe5a9c7d897cee0e5447.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "sidebar",
   "copy-button": false,
@@ -237,7 +237,8 @@ window.Quarto = {
     <h2 id="toc-title">Table of contents</h2>
    
   <ul>
-  <li><a href="#lgcp-in-inla" id="toc-lgcp-in-inla" class="nav-link active" data-scroll-target="#lgcp-in-inla"><span class="header-section-number">4.1</span> LGCP in INLA</a></li>
+  <li><a href="#inla" id="toc-inla" class="nav-link active" data-scroll-target="#inla"><span class="header-section-number">4.1</span> INLA</a></li>
+  <li><a href="#inlabru" id="toc-inlabru" class="nav-link" data-scroll-target="#inlabru"><span class="header-section-number">4.2</span> Inlabru</a></li>
   </ul>
 </nav>
     </div>
@@ -263,8 +264,8 @@ window.Quarto = {
 </header>
 
 
-<section id="lgcp-in-inla" class="level2" data-number="4.1">
-<h2 data-number="4.1" class="anchored" data-anchor-id="lgcp-in-inla"><span class="header-section-number">4.1</span> LGCP in INLA</h2>
+<section id="inla" class="level2" data-number="4.1">
+<h2 data-number="4.1" class="anchored" data-anchor-id="inla"><span class="header-section-number">4.1</span> INLA</h2>
 <p>Having completed air pollution modelling in <code>INLA</code> and <code>inlabru</code>, it is time to move on to the LGCP and the point process model. A couple of online resources about point process modelling in <code>INLA</code> include: <a href="https://becarioprecario.bitbucket.io/spde-gitbook/ch-stapp.html#sec:burkitt" class="uri">https://becarioprecario.bitbucket.io/spde-gitbook/ch-stapp.html#sec:burkitt</a> and <a href="https://www.paulamoraga.com/book-spatial/point-process-modeling.html" class="uri">https://www.paulamoraga.com/book-spatial/point-process-modeling.html</a>. I’ll again be relying on the Moraga book for template code.</p>
 <p>The model fit here has intensity specified as <span class="math display">\[
 \lambda(s) = \exp[\beta_0 + f(s)]
@@ -276,11 +277,14 @@ window.Quarto = {
 <span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(ggplot2)</span>
 <span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(viridis)</span>
 <span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(terra)</span>
-<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(dplyr)</span>
-<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(readr)</span>
-<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(rasterVis)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tidyterra)</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(dplyr)</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(readr)</span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(rasterVis)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
-<p>Now for the data. I’ll use butterfly data from citizen science observations made in the Netherlands in 2023. The data is available in the GBIF repository <a href="https://doi.org/10.15468/dl.p5cy6n" class="uri">https://doi.org/10.15468/dl.p5cy6n</a>, which includes all butterfly observations uploaded to observation.org. So it’s necessary to filter the dataset down to just the Netherlands. I filter for the species Lasiommata megera. Here is a nice picture (Charles J. Sharp - Own work, from Sharp Photography, sharpphotography.co.uk, CC BY-SA 4.0, <a href="https://commons.wikimedia.org/w/index.php?curid=81510351" class="uri">https://commons.wikimedia.org/w/index.php?curid=81510351</a>): <img src="figures/Lasiommata_megera_male_Italy.jpg" class="img-fluid" style="width:50.0%" alt="Lasiommata megera"></p>
+<p>Now for the data. I’ll use butterfly data from citizen science observations made in the Netherlands in 2023. The data is available in the GBIF repository <a href="https://doi.org/10.15468/dl.p5cy6n" class="uri">https://doi.org/10.15468/dl.p5cy6n</a>, which includes all butterfly observations uploaded to observation.org. So it’s necessary to filter the dataset down to just the Netherlands. I also filter for the species <em>Lasiommata megera</em>.</p>
+<p>Here is a nice picture (Charles J. Sharp - Own work, from Sharp Photography, sharpphotography.co.uk, CC BY-SA 4.0, <a href="https://commons.wikimedia.org/w/index.php?curid=81510351" class="uri">https://commons.wikimedia.org/w/index.php?curid=81510351</a>): <img src="figures/Lasiommata_megera_male_Italy.jpg" class="img-fluid" style="width:50.0%" alt="Lasiommata megera"></p>
+<p>Once the filtering is done, we are left with 2705 observations.</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>file_name <span class="ot">&lt;-</span> <span class="fu">file.path</span>(<span class="st">"D:"</span>, <span class="st">"data"</span>, <span class="st">"gbif_observation_org_butterflies"</span>, <span class="st">"gbif_butterfly_observation-org"</span>, <span class="st">"gbif_subset_netherlands_lepidoptera.csv"</span>)</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>d <span class="ot">&lt;-</span> <span class="fu">read_delim</span>(file_name, <span class="at">delim=</span><span class="st">'</span><span class="sc">\t</span><span class="st">'</span>, <span class="at">col_types=</span><span class="fu">cols</span>(<span class="at">infraspecificEpithet=</span><span class="fu">col_character</span>()))</span>
@@ -297,7 +301,6 @@ window.Quarto = {
 <span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a><span class="co"># Observed coordinates</span></span>
 <span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>d <span class="ot">&lt;-</span> <span class="fu">st_transform</span>(d, <span class="at">crs =</span> projMercator)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
-<p>Once the filtering is done, we are left with 2705 observations.</p>
 <p>Before, I used the Netherlands map directly, but now there is some extra processing to do, due to little isolated boundaries within the main polygon of the Netherlands border.</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>layers <span class="ot">&lt;-</span> <span class="fu">st_layers</span>(<span class="fu">file.path</span>(<span class="st">"D:"</span>, <span class="st">"data"</span>, <span class="st">"maps"</span>, <span class="st">"netherlands_bestuurlijkegrenzen_2021"</span>, <span class="st">"bestuurlijkegrenzen.gpkg"</span>))</span>
@@ -388,14 +391,11 @@ Writing 1 features with 0 fields and geometry type Polygon.</code></pre>
 <p>Next, build the mesh. I left the projection in meters here, so the max.edge has to reflect those units. I also found that the parameter estimates in this example were particularly sensitive to the resolution of the triangles in the mesh, so I chose a <code>max.edge</code>s that gave good estimates but also weren’t too slow in the fitting process. The main takeaway here is that it is important to explore different meshes a bit and the effect of that on your model.</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>loc.d <span class="ot">&lt;-</span> <span class="fu">cbind</span>(<span class="fu">st_coordinates</span>(map)[, <span class="dv">1</span>], <span class="fu">st_coordinates</span>(map)[, <span class="dv">2</span>])</span>
-<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a><span class="co">#mesh &lt;- inla.mesh.2d(loc=coo, max.edge = c(50000, 100000))</span></span>
-<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a><span class="co">#mesh &lt;- inla.mesh.2d(loc.domain=loc.d)</span></span>
-<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a><span class="co">#mesh &lt;- inla.mesh.2d(loc.domain = loc.d, max.edge = c(50, 100), crs=crs(d))</span></span>
-<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a>mesh <span class="ot">&lt;-</span> <span class="fu">inla.mesh.2d</span>(<span class="at">loc.domain =</span> loc.d, <span class="at">max.edge =</span> <span class="fu">c</span>(<span class="dv">30000</span>, <span class="dv">50000</span>), <span class="at">crs=</span><span class="fu">crs</span>(d))</span>
-<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(mesh)</span>
-<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a><span class="fu">points</span>(coo, <span class="at">col =</span> <span class="st">"red"</span>)</span>
-<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a><span class="fu">axis</span>(<span class="dv">1</span>)</span>
-<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a><span class="fu">axis</span>(<span class="dv">2</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>mesh <span class="ot">&lt;-</span> <span class="fu">inla.mesh.2d</span>(<span class="at">loc.domain =</span> loc.d, <span class="at">max.edge =</span> <span class="fu">c</span>(<span class="dv">30000</span>, <span class="dv">50000</span>), <span class="at">crs=</span><span class="fu">crs</span>(d))</span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(mesh)</span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a><span class="fu">points</span>(coo, <span class="at">col =</span> <span class="st">"red"</span>)</span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a><span class="fu">axis</span>(<span class="dv">1</span>)</span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a><span class="fu">axis</span>(<span class="dv">2</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output-display">
 <div>
 <figure class="figure">
@@ -412,9 +412,9 @@ Writing 1 features with 0 fields and geometry type Polygon.</code></pre>
 <pre><code>[1] 2705</code></pre>
 </div>
 </div>
-<p>Using <code>spde &lt;- inla.spde2.matern(mesh = mesh, alpha = 2, constr = TRUE)</code> led to some differences in the <code>inla</code> and <code>INLABRU</code> models, mainly in that the intercept was quite different between the two. So I started to use the Penalized Complexity priors on the matern function instead. The PC priors can be read about in <span class="citation" data-cites="simpson2017">Daniel Simpson et al. (<a href="references.html#ref-simpson2017" role="doc-biblioref">2017</a>)</span>.</p>
+<p>Using <code>spde &lt;- inla.spde2.matern(mesh = mesh, alpha = 2, constr = TRUE)</code> led to some differences in the <code>inla</code> and <code>INLABRU</code> models, mainly in that the intercept was quite different between the two. So I started to use the Penalized Complexity priors on the matern function instead. The PC priors can be read about in <span class="citation" data-cites="simpson2017">Daniel Simpson et al. (<a href="references.html#ref-simpson2017" role="doc-biblioref">2017</a>)</span>. <code>prior.range</code><span class="math inline">\(=(\rho\)</span>,<span class="math inline">\(p_{\rho})\)</span> specifies <span class="math inline">\(P(\rho &lt; \rho_0)=p_ρ\)</span>, the probability that the range is less than a certain amount <span class="math inline">\(\rho_0\)</span>. This indicates how likely it is that the spatial range of the field degrades quickly. The same can be said for <code>prior.sigma</code>, only for the marginal standard deviation of the field.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb18"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>spde <span class="ot">&lt;-</span> <span class="fu">inla.spde2.pcmatern</span>(<span class="at">mesh =</span> mesh, <span class="at">alpha =</span> <span class="dv">2</span>, <span class="at">constr =</span> <span class="cn">TRUE</span>, <span class="at">prior.range =</span> <span class="fu">c</span>(<span class="dv">10</span>, <span class="fl">0.01</span>), <span class="at">prior.sigma =</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="fl">0.01</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb18"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>spde <span class="ot">&lt;-</span> <span class="fu">inla.spde2.pcmatern</span>(<span class="at">mesh =</span> mesh, <span class="at">alpha =</span> <span class="dv">2</span>, <span class="at">constr =</span> <span class="cn">TRUE</span>, <span class="at">prior.range =</span> <span class="fu">c</span>(<span class="dv">10</span>, <span class="fl">0.1</span>), <span class="at">prior.sigma =</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="fl">0.01</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p>In the point process setting, it is necessary to use the method of <span class="citation" data-cites="simpson2016">D. Simpson et al. (<a href="references.html#ref-simpson2016" role="doc-biblioref">2016</a>)</span>. This uses a dual mesh to approximate the point process likelihood. It is called a dual mesh because a mesh of polygons is generated, each centered around the vertices of the triangles in the first mesh. The code to create the dual mesh is available in both the SPDE book and Moraga book.</p>
 <div class="cell">
@@ -521,7 +521,7 @@ Writing 1 features with 0 fields and geometry type Polygon.</code></pre>
 </div>
 </div>
 <p>Next, create the <code>INLA</code> stack, for both observations and for prediction points. In the first section I didn’t provide that much detail about the stack, so I’ll explain it in more detail here.</p>
-<p>First we create vectors for the observed response and for estimation. <code>nv</code> is the number of mesh nodes and <code>n</code> is the number of observations, where there will be a 0 for each element of length <code>nv</code> and a 1 for each of length <code>n</code>. <code>e.pp</code> will consist of the integration weights <code>w</code> of length <code>nv</code> and a set of 0s of length <code>n</code>. This is for the numerical integration in the LGCP likelihood. Just as in the point process likelihood, we have two components: An intractable integral to be approximated, and a product of point locations: <span class="math display">\[
+<p>First we create vectors for the observed response and for estimation. For <code>y.pp</code>, <code>nv</code> is the number of mesh nodes and <code>n</code> is the number of observations, where there will be a 0 for each element of length <code>nv</code> and a 1 for each of length <code>n</code>. <code>e.pp</code> will consist of the integration weights <code>w</code> of length <code>nv</code> and a set of 0s of length <code>n</code>. This is for the numerical integration in the LGCP likelihood. Just as in the point process likelihood, we have two components: An intractable integral to be approximated, and a product of point locations: <span class="math display">\[
 L(\lambda)\propto\prod_iλ(s_i​)\exp\left(−\int_D\lambda(s)ds\right)
 \]</span></p>
 <div class="cell">
@@ -595,31 +595,28 @@ L(\lambda)\propto\prod_iλ(s_i​)\exp\left(−\int_D\lambda(s)ds\right)
 <div class="sourceCode cell-code" id="cb31"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a>formula <span class="ot">&lt;-</span> y <span class="sc">~</span> <span class="sc">-</span><span class="dv">1</span> <span class="sc">+</span> b0 <span class="sc">+</span> <span class="fu">f</span>(s, <span class="at">model =</span> spde)</span>
 <span id="cb31-2"><a href="#cb31-2" aria-hidden="true" tabindex="-1"></a>res <span class="ot">&lt;-</span> <span class="fu">inla</span>(formula,  <span class="at">family =</span> <span class="st">'poisson'</span>,</span>
 <span id="cb31-3"><a href="#cb31-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> <span class="fu">inla.stack.data</span>(stk.full.pp),</span>
-<span id="cb31-4"><a href="#cb31-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">control.inla=</span><span class="fu">list</span>(<span class="at">int.strategy =</span> <span class="st">'grid'</span>, <span class="at">strategy=</span><span class="st">"laplace"</span>),</span>
+<span id="cb31-4"><a href="#cb31-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">control.inla=</span><span class="fu">list</span>(<span class="at">int.strategy =</span> <span class="st">'grid'</span>, <span class="at">strategy=</span><span class="st">"adaptive"</span>),</span>
 <span id="cb31-5"><a href="#cb31-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">control.predictor =</span> <span class="fu">list</span>(<span class="at">compute =</span> <span class="cn">TRUE</span>, <span class="at">link =</span> <span class="dv">1</span>,</span>
 <span id="cb31-6"><a href="#cb31-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">A =</span> <span class="fu">inla.stack.A</span>(stk.full.pp)),</span>
 <span id="cb31-7"><a href="#cb31-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">E =</span> <span class="fu">inla.stack.data</span>(stk.full.pp)<span class="sc">$</span>e,</span>
-<span id="cb31-8"><a href="#cb31-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">control.fixed=</span><span class="fu">list</span>(<span class="at">prec =</span> <span class="fl">0.001</span><span class="sc">^</span><span class="dv">2</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb31-8"><a href="#cb31-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">control.fixed=</span><span class="fu">list</span>(<span class="at">prec =</span> <span class="fl">0.001</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
-<p><code>prec = 0.001^2</code> sets a vague gaussian prior, <span class="math inline">\(N(0, \sigma^2=1/\text{prec}=1000)\)</span>.</p>
+<p><code>prec = 0.001</code> sets a vague Gaussian prior, <span class="math inline">\(N(0, \sigma^2=1/\text{prec})\)</span>.</p>
 <p>We can check the estimate for the intercept, as well as the parameters for the spatial field.</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb32"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb32-1"><a href="#cb32-1" aria-hidden="true" tabindex="-1"></a>res<span class="sc">$</span>summary.fixed</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>        mean         sd 0.025quant  0.5quant 0.975quant      mode         kld
-b0 -17.87943 0.06768358  -18.01215 -17.87943  -17.74671 -17.87943 5.58371e-11</code></pre>
+<pre><code>        mean         sd 0.025quant  0.5quant 0.975quant      mode kld
+b0 -17.53066 0.01922714  -17.56835 -17.53066  -17.49298 -17.53066   0</code></pre>
 </div>
 <div class="sourceCode cell-code" id="cb34"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb34-1"><a href="#cb34-1" aria-hidden="true" tabindex="-1"></a>res<span class="sc">$</span>summary.hyperpar</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>                   mean           sd  0.025quant   0.5quant 0.975quant
-Range for s 1926.773654 0.0338815561 1926.724462 1926.76899 1926.85261
-Stdev for s    9.666127 0.0001665569    9.665739    9.66615    9.66637
-                   mode
-Range for s 1926.745242
-Stdev for s    9.666266</code></pre>
+<pre><code>                   mean          sd 0.025quant   0.5quant 0.975quant       mode
+Range for s 106.7471530 263.8428692 7.25852545 42.6774805 619.967297 14.9620472
+Stdev for s   0.3656836   0.4412558 0.03915788  0.2339291   1.508591  0.1009711</code></pre>
 </div>
 </div>
-<p>Then extract the predictions</p>
+<p>Then extract the predictions.</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb36"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb36-1"><a href="#cb36-1" aria-hidden="true" tabindex="-1"></a>index <span class="ot">&lt;-</span> <span class="fu">inla.stack.index</span>(stk.full.pp, <span class="at">tag =</span> <span class="st">"pred.pp"</span>)<span class="sc">$</span>data</span>
 <span id="cb36-2"><a href="#cb36-2" aria-hidden="true" tabindex="-1"></a>pred_mean <span class="ot">&lt;-</span> res<span class="sc">$</span>summary.fitted.values[index, <span class="st">"mean"</span>]</span>
@@ -635,8 +632,17 @@ Stdev for s    9.666266</code></pre>
 </div>
 <p>And plot the predicted intensity</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb37"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb37-1"><a href="#cb37-1" aria-hidden="true" tabindex="-1"></a><span class="fu">levelplot</span>(raster<span class="sc">::</span><span class="fu">brick</span>(grid), <span class="at">layout =</span> <span class="fu">c</span>(<span class="dv">3</span>, <span class="dv">1</span>),</span>
-<span id="cb37-2"><a href="#cb37-2" aria-hidden="true" tabindex="-1"></a><span class="at">names.attr =</span> <span class="fu">c</span>(<span class="st">"Mean"</span>, <span class="st">"2.5 percentile"</span>, <span class="st">"97.5 percentile"</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb37"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb37-1"><a href="#cb37-1" aria-hidden="true" tabindex="-1"></a><span class="co">#levelplot(raster::brick(grid), layout = c(3, 1),</span></span>
+<span id="cb37-2"><a href="#cb37-2" aria-hidden="true" tabindex="-1"></a><span class="co">#names.attr = c("Mean", "2.5 percentile", "97.5 percentile"))</span></span>
+<span id="cb37-3"><a href="#cb37-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Ah that looks good! There is some numerical problem, or my predictions are on the wrong scale.</span></span>
+<span id="cb37-4"><a href="#cb37-4" aria-hidden="true" tabindex="-1"></a>min_val <span class="ot">&lt;-</span> <span class="fu">global</span>(<span class="fu">log</span>(grid<span class="sc">$</span>mean), <span class="st">"min"</span>, <span class="at">na.rm =</span> <span class="cn">TRUE</span>)[[<span class="dv">1</span>]]</span>
+<span id="cb37-5"><a href="#cb37-5" aria-hidden="true" tabindex="-1"></a>max_val <span class="ot">&lt;-</span> <span class="fu">global</span>(<span class="fu">log</span>(grid<span class="sc">$</span>mean), <span class="st">"max"</span>, <span class="at">na.rm =</span> <span class="cn">TRUE</span>)[[<span class="dv">1</span>]]</span>
+<span id="cb37-6"><a href="#cb37-6" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>() <span class="sc">+</span></span>
+<span id="cb37-7"><a href="#cb37-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_spatraster</span>(<span class="at">data =</span> <span class="fu">log</span>(grid<span class="sc">$</span>mean)) <span class="sc">+</span></span>
+<span id="cb37-8"><a href="#cb37-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">title =</span> <span class="st">"Predicted intensity on log linear scale"</span>,</span>
+<span id="cb37-9"><a href="#cb37-9" aria-hidden="true" tabindex="-1"></a>       <span class="at">fill =</span> <span class="st">"Intensity"</span>) <span class="sc">+</span></span>
+<span id="cb37-10"><a href="#cb37-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_fill_viridis_c</span>(<span class="at">limits=</span><span class="fu">c</span>(min_val, max_val), <span class="at">breaks =</span> <span class="fu">seq</span>(min_val, max_val, <span class="at">length.out =</span> <span class="dv">10</span>)) <span class="sc">+</span></span>
+<span id="cb37-11"><a href="#cb37-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output-display">
 <div>
 <figure class="figure">
@@ -645,7 +651,11 @@ Stdev for s    9.666266</code></pre>
 </div>
 </div>
 </div>
-<p>We have to make sure to get the domain for the sampler correct. The INLA code does it above, but inlabru by default does not. More about that here <a href="https://inlabru-org.github.io/inlabru/articles/2d_lgcp_plotsampling.html" class="uri">https://inlabru-org.github.io/inlabru/articles/2d_lgcp_plotsampling.html</a> and actually the exact problem here: <a href="https://groups.google.com/g/r-inla-discussion-group/c/0bBC9bVV-L4" class="uri">https://groups.google.com/g/r-inla-discussion-group/c/0bBC9bVV-L4</a> even though the problem was with preferential sampling. In the mesh-process R section above, you can see the manipulation to get the domains correct for INLA. Even with including <code>sampler=domain_sf</code> here, the estimates are not exactly the same as INLA, but closer than it was before.</p>
+<p>We can see in the legend that the intensity changes must be very small, because even on the log scale the legend values do not change. This is discussed more in the next section.</p>
+</section>
+<section id="inlabru" class="level2" data-number="4.2">
+<h2 data-number="4.2" class="anchored" data-anchor-id="inlabru"><span class="header-section-number">4.2</span> Inlabru</h2>
+<p>Next: Inlabru. Firstly, we have to make sure to get the domain for the sampler correct. The INLA code does it above, but inlabru by default does not. More about that here <a href="https://inlabru-org.github.io/inlabru/articles/2d_lgcp_plotsampling.html" class="uri">https://inlabru-org.github.io/inlabru/articles/2d_lgcp_plotsampling.html</a> and actually the exact problem here: <a href="https://groups.google.com/g/r-inla-discussion-group/c/0bBC9bVV-L4" class="uri">https://groups.google.com/g/r-inla-discussion-group/c/0bBC9bVV-L4</a> even though the problem was with preferential sampling. In the mesh-process R section above, you can see the manipulation to get the domains correct for INLA. Even with including <code>sampler=domain_sf</code> here, the estimates are not exactly the same as INLA, but closer than it was before.</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb38"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb38-1"><a href="#cb38-1" aria-hidden="true" tabindex="-1"></a>ips <span class="ot">&lt;-</span> <span class="fu">fm_int</span>(</span>
 <span id="cb38-2"><a href="#cb38-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">domain =</span> <span class="fu">list</span>(<span class="at">geometry =</span> mesh),</span>
@@ -669,7 +679,7 @@ Stdev for s    9.666266</code></pre>
 <div class="sourceCode cell-code" id="cb39"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb39-1"><a href="#cb39-1" aria-hidden="true" tabindex="-1"></a>formula_inlabru <span class="ot">&lt;-</span> geometry <span class="sc">~</span> <span class="sc">-</span><span class="dv">1</span> <span class="sc">+</span> <span class="fu">b0</span>(<span class="dv">1</span>) <span class="sc">+</span> <span class="fu">f</span>(geometry, <span class="at">model =</span> spde)</span>
 <span id="cb39-2"><a href="#cb39-2" aria-hidden="true" tabindex="-1"></a>fit1 <span class="ot">&lt;-</span> <span class="fu">lgcp</span>(formula_inlabru, <span class="at">data=</span>d, <span class="at">samplers=</span>domain_sf, <span class="at">domain =</span> <span class="fu">list</span>(<span class="at">geometry =</span> mesh), </span>
 <span id="cb39-3"><a href="#cb39-3" aria-hidden="true" tabindex="-1"></a>             <span class="at">options =</span> <span class="fu">list</span>(<span class="at">control.inla=</span><span class="fu">list</span>(<span class="at">int.strategy =</span> <span class="st">'grid'</span>, <span class="at">strategy=</span><span class="st">"laplace"</span>),</span>
-<span id="cb39-4"><a href="#cb39-4" aria-hidden="true" tabindex="-1"></a>                            <span class="at">control.fixed=</span><span class="fu">list</span>(<span class="at">prec =</span> <span class="fl">0.001</span><span class="sc">^</span><span class="dv">2</span>)))</span>
+<span id="cb39-4"><a href="#cb39-4" aria-hidden="true" tabindex="-1"></a>                            <span class="at">control.fixed=</span><span class="fu">list</span>(<span class="at">prec =</span> <span class="fl">0.001</span>)))</span>
 <span id="cb39-5"><a href="#cb39-5" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(fit1)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>inlabru version: 2.12.0
@@ -685,37 +695,38 @@ Likelihoods:
     Predictor: geometry ~ .
     Used components: effects[b0, f], latent[]
 Time used:
-    Pre = 0.811, Running = 10.8, Post = 0.362, Total = 12 
+    Pre = 0.732, Running = 3.4, Post = 0.404, Total = 4.53 
 Fixed effects:
       mean    sd 0.025quant 0.5quant 0.975quant    mode kld
-b0 -22.286 1.552    -27.178  -21.952    -20.244 -21.629   0
+b0 -17.531 0.019    -17.569  -17.531    -17.493 -17.531   0
 
 Random effects:
   Name    Model
     f SPDE2 model
 
 Model hyperparameters:
-                mean       sd 0.025quant 0.5quant 0.975quant     mode
-Range for f 1.33e+05 2.03e+04   98463.48 1.31e+05   1.78e+05 1.27e+05
-Stdev for f 3.14e+00 3.85e-01       2.47 3.11e+00   3.98e+00 3.04e+00
+                mean       sd 0.025quant 0.5quant 0.975quant    mode
+Range for f 13174.39 32471.15     897.63  5279.37   76437.30 1852.30
+Stdev for f    15.57    18.79       1.66     9.96      64.25    4.29
 
-Deviance Information Criterion (DIC) ...............: -122985.54
+Deviance Information Criterion (DIC) ...............: -134227.68
 Deviance Information Criterion (DIC, saturated) ....: NA
-Effective number of parameters .....................: -124807.53
+Effective number of parameters .....................: -135917.28
 
-Watanabe-Akaike information criterion (WAIC) ...: 12444.17
-Effective number of parameters .................: 4588.83
+Watanabe-Akaike information criterion (WAIC) ...: 10596.02
+Effective number of parameters .................: 3619.66
 
-Marginal log-Likelihood:  -63616.51 
+Marginal log-Likelihood:  -68811.10 
  is computed 
 Posterior summaries for the linear predictor and the fitted values are computed
 (Posterior marginals needs also 'control.compute=list(return.marginals.predictor=TRUE)')</code></pre>
 </div>
 </div>
-<p>We can again make predictions across the domain, using the generated prediction points.</p>
+<p><span class="math inline">\(\beta_0\)</span> is -17, which is quite low since the average baseline intensity <span class="math inline">\(\frac{n_{obs}}{\text{Area_D}}\)</span> is also very small. This is because there are not that many observations (2705) over the whole of the Netherlands.</p>
+<p>We can again make predictions across the domain, exponentiating the linear predictor, using the generated prediction points.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb41"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb41-1"><a href="#cb41-1" aria-hidden="true" tabindex="-1"></a>predictions1 <span class="ot">&lt;-</span> <span class="fu">predict</span>(fit1, <span class="at">newdata=</span>dp, <span class="at">formula =</span> <span class="sc">~</span> b0 <span class="sc">+</span> f)</span>
-<span id="cb41-2"><a href="#cb41-2" aria-hidden="true" tabindex="-1"></a>predictions2 <span class="ot">&lt;-</span> <span class="fu">predict</span>(fit1, <span class="at">newdata=</span>dp, <span class="at">formula =</span> <span class="sc">~</span> f)</span>
+<div class="sourceCode cell-code" id="cb41"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb41-1"><a href="#cb41-1" aria-hidden="true" tabindex="-1"></a>predictions1 <span class="ot">&lt;-</span> <span class="fu">predict</span>(fit1, <span class="at">newdata=</span>dp, <span class="at">formula =</span> <span class="sc">~</span> <span class="fu">exp</span>(b0 <span class="sc">+</span> f))</span>
+<span id="cb41-2"><a href="#cb41-2" aria-hidden="true" tabindex="-1"></a>predictions2 <span class="ot">&lt;-</span> <span class="fu">predict</span>(fit1, <span class="at">newdata=</span>dp, <span class="at">formula =</span> <span class="sc">~</span> <span class="fu">exp</span>(f))</span>
 <span id="cb41-3"><a href="#cb41-3" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>() <span class="sc">+</span></span>
 <span id="cb41-4"><a href="#cb41-4" aria-hidden="true" tabindex="-1"></a><span class="fu">geom_sf</span>(<span class="at">data=</span>predictions1, <span class="fu">aes</span>(<span class="at">color=</span>mean)) <span class="sc">+</span></span>
 <span id="cb41-5"><a href="#cb41-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_colour_gradient</span>(<span class="at">low =</span> <span class="st">"blue"</span>, <span class="at">high =</span> <span class="st">"yellow"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
@@ -738,6 +749,7 @@ Posterior summaries for the linear predictor and the fitted values are computed
 </div>
 </div>
 </div>
+<p>The spatial field looks reasonable. The estimated values of the intensity are so small because we are working on the scale of meters and there are not that many observations, so per meter we do not expect the intensity to be very strong, i.e., it is not very likely for a point observation to occur within any square meter. We can get better resolution and a smoother field if the number of prediction points is higher. I observed that the PC prior for the range of the matern covariance structure <span class="math inline">\(\rho\)</span> has quite an effect, especially since there are no covariates here. That’s another thing to look out for in your own applications.</p>
 <p>That concludes my demonstrations using the <code>INLA</code> and <code>inlabru</code> software. This may hopefully serve as a useful reference for someone, that someone being at least myself. As can be seen, the INLA modelling approach is quite flexible and can be used to construct all sorts of models. Constructing the model isn’t the easiest thing in the world though, and understanding each element can take a while. But the advantage is that once you are comfortable with it, there is a lot that can be done all under the same INLA umbrella. <code>inlabru</code> is a lot easier to use than <code>INLA</code> but it makes some assumptions under the hood that may be advantageous from a statistical perspective (more efficient, robust), but wave away some of the important complexity and the connection of the software to the method of INLA itself. In the end, this blog post was more about INLA than it was about LGCPs, but one begets the other and so it was the natural order of things.</p>
 
 
