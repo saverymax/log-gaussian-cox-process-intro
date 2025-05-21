@@ -1,6 +1,6 @@
 # Implementation of LGCP in INLA and INLABRU
 
-## LGCP in INLA 
+## INLA 
 
 Having completed air pollution modelling in `INLA` and `inlabru`, it is time to move on to the LGCP and the point process model. A couple of online resources about point process modelling in `INLA` include: <https://becarioprecario.bitbucket.io/spde-gitbook/ch-stapp.html#sec:burkitt> and <https://www.paulamoraga.com/book-spatial/point-process-modeling.html>. I'll again be relying on the Moraga book for template code.
 
@@ -18,13 +18,17 @@ library(sf)
 library(ggplot2)
 library(viridis)
 library(terra)
+library(tidyterra)
 library(dplyr)
 library(readr)
 library(rasterVis)
 ```
-Now for the data. I'll use butterfly data from citizen science observations made in the Netherlands in 2023. The data is available in the GBIF repository <https://doi.org/10.15468/dl.p5cy6n>, which includes all butterfly observations uploaded to observation.org. So it's necessary to filter the dataset down to just the Netherlands. I filter for the species Lasiommata megera. Here is a nice picture (Charles J. Sharp - Own work, from Sharp Photography, sharpphotography.co.uk, CC BY-SA 4.0, <https://commons.wikimedia.org/w/index.php?curid=81510351>):
+Now for the data. I'll use butterfly data from citizen science observations made in the Netherlands in 2023. The data is available in the GBIF repository <https://doi.org/10.15468/dl.p5cy6n>, which includes all butterfly observations uploaded to observation.org. So it's necessary to filter the dataset down to just the Netherlands. I also filter for the species *Lasiommata megera*. 
+
+Here is a nice picture (Charles J. Sharp - Own work, from Sharp Photography, sharpphotography.co.uk, CC BY-SA 4.0, <https://commons.wikimedia.org/w/index.php?curid=81510351>):
 ![Lasiommata megera](figures/Lasiommata_megera_male_Italy.jpg){width="50%"}
 
+Once the filtering is done, we are left with 2705 observations.
 ```{r data}
 file_name <- file.path("D:", "data", "gbif_observation_org_butterflies", "gbif_butterfly_observation-org", "gbif_subset_netherlands_lepidoptera.csv")
 d <- read_delim(file_name, delim='\t', col_types=cols(infraspecificEpithet=col_character()))
@@ -38,8 +42,6 @@ projMercator <- st_crs("EPSG:3857")$proj4string
 # Observed coordinates
 d <- st_transform(d, crs = projMercator)
 ```
-Once the filtering is done, we are left with 2705 observations.
-
 Before, I used the Netherlands map directly, but now there is some extra processing to do, due to little isolated boundaries within the main polygon of the Netherlands border.
 ```{r map}
 layers <- st_layers(file.path("D:", "data", "maps", "netherlands_bestuurlijkegrenzen_2021", "bestuurlijkegrenzen.gpkg"))
@@ -95,9 +97,6 @@ coop <- st_coordinates(dp)
 Next, build the mesh. I left the projection in meters here, so the max.edge has to reflect those units. I also found that the parameter estimates in this example were particularly sensitive to the resolution of the triangles in the mesh, so I chose a `max.edge`s that gave good estimates but also weren't too slow in the fitting process. The main takeaway here is that it is important to explore different meshes a bit and the effect of that on your model.
 ```{r mesh}
 loc.d <- cbind(st_coordinates(map)[, 1], st_coordinates(map)[, 2])
-#mesh <- inla.mesh.2d(loc=coo, max.edge = c(50000, 100000))
-#mesh <- inla.mesh.2d(loc.domain=loc.d)
-#mesh <- inla.mesh.2d(loc.domain = loc.d, max.edge = c(50, 100), crs=crs(d))
 mesh <- inla.mesh.2d(loc.domain = loc.d, max.edge = c(30000, 50000), crs=crs(d))
 plot(mesh)
 points(coo, col = "red")
@@ -106,9 +105,10 @@ axis(2)
 (nv <- mesh$n)
 (n <- nrow(coo))
 ```
-Using `spde <- inla.spde2.matern(mesh = mesh, alpha = 2, constr = TRUE)` led to some differences in the `inla` and `INLABRU` models, mainly in that the intercept was quite different between the two. So I started to use the Penalized Complexity priors on the matern function instead. The PC priors can be read about in @simpson2017.
+Using `spde <- inla.spde2.matern(mesh = mesh, alpha = 2, constr = TRUE)` led to some differences in the `inla` and `INLABRU` models, mainly in that the intercept was quite different between the two. So I started to use the Penalized Complexity priors on the matern function instead. The PC priors can be read about in @simpson2017. ```prior.range```$=(\rho$,$p_{\rho})$ specifies $P(\rho < \rho_0)=p_ρ$, the probability that the range is less than a certain amount $\rho_0$. This indicates how likely it is that the spatial range of the field degrades quickly. The same can be said for ```prior.sigma```, only for the marginal standard deviation of the field.
+
 ```{r inla-spde}
-spde <- inla.spde2.pcmatern(mesh = mesh, alpha = 2, constr = TRUE, prior.range = c(10, 0.01), prior.sigma = c(1, 0.01))
+spde <- inla.spde2.pcmatern(mesh = mesh, alpha = 2, constr = TRUE, prior.range = c(10, 0.1), prior.sigma = c(1, 0.01))
 ```
 In the point process setting, it is necessary to use the method of @simpson2016. This uses a dual mesh to approximate the point process likelihood. It is called a dual mesh because a mesh of polygons is generated, each centered around the vertices of the triangles in the first mesh. The code to create the dual mesh is available in both the SPDE book and Moraga book.
 ```{r dual-mesh}
@@ -197,7 +197,7 @@ points(mesh$loc[which(w == 0), 1:2], col = "red", pch = 20)
 ```
 Next, create the `INLA` stack, for both observations and for prediction points. In the first section I didn't provide that much detail about the stack, so I'll explain it in more detail here. 
 
-First we create vectors for the observed response and for estimation. `nv` is the number of mesh nodes and `n` is the number of observations, where there will be a 0 for each element of length `nv` and a 1 for each of length `n`. `e.pp` will consist of the integration weights `w` of length `nv` and a set of 0s of length `n`. This is for the numerical integration in the LGCP likelihood. Just as in the point process likelihood, we have two components: An intractable integral to be approximated, and a product of point locations: 
+First we create vectors for the observed response and for estimation. For `y.pp`, `nv` is the number of mesh nodes and `n` is the number of observations, where there will be a 0 for each element of length `nv` and a 1 for each of length `n`. `e.pp` will consist of the integration weights `w` of length `nv` and a set of 0s of length `n`. This is for the numerical integration in the LGCP likelihood. Just as in the point process likelihood, we have two components: An intractable integral to be approximated, and a product of point locations: 
 $$
 L(\lambda)\propto\prod_iλ(s_i​)\exp\left(−\int_D\lambda(s)ds\right)
 $$
@@ -272,20 +272,20 @@ Finally, we can fit the model. This looks about the same as in the continuous se
 formula <- y ~ -1 + b0 + f(s, model = spde)
 res <- inla(formula,  family = 'poisson',
   data = inla.stack.data(stk.full.pp),
-  control.inla=list(int.strategy = 'grid', strategy="laplace"),
+  control.inla=list(int.strategy = 'grid', strategy="adaptive"),
   control.predictor = list(compute = TRUE, link = 1,
     A = inla.stack.A(stk.full.pp)),
     E = inla.stack.data(stk.full.pp)$e,
-  control.fixed=list(prec = 0.001^2))
+  control.fixed=list(prec = 0.001))
 ```
-`prec = 0.001^2` sets a vague gaussian prior, $N(0, \sigma^2=1/\text{prec}=1000)$.
+`prec = 0.001` sets a vague Gaussian prior, $N(0, \sigma^2=1/\text{prec})$.
 
 We can check the estimate for the intercept, as well as the parameters for the spatial field.
 ```{r check-fit}
 res$summary.fixed
 res$summary.hyperpar
 ```
-Then extract the predictions
+Then extract the predictions.
 ```{r inla-pred-lgcp}
 index <- inla.stack.index(stk.full.pp, tag = "pred.pp")$data
 pred_mean <- res$summary.fitted.values[index, "mean"]
@@ -302,12 +302,25 @@ grid$ul[indicespointswithin] <- pred_ul
 And plot the predicted intensity
 ```{r plot-preds-inla}
 #| eval: true
-levelplot(raster::brick(grid), layout = c(3, 1),
-names.attr = c("Mean", "2.5 percentile", "97.5 percentile"))
+#levelplot(raster::brick(grid), layout = c(3, 1),
+#names.attr = c("Mean", "2.5 percentile", "97.5 percentile"))
+# Ah that looks good! There is some numerical problem, or my predictions are on the wrong scale.
+min_val <- global(log(grid$mean), "min", na.rm = TRUE)[[1]]
+max_val <- global(log(grid$mean), "max", na.rm = TRUE)[[1]]
+ggplot() +
+  geom_spatraster(data = log(grid$mean)) +
+  labs(title = "Predicted intensity on log linear scale",
+       fill = "Intensity") +
+  scale_fill_viridis_c(limits=c(min_val, max_val), breaks = seq(min_val, max_val, length.out = 10)) +
+  theme_minimal()
 ```
+We can see in the legend that the intensity changes must be very small, because even on the log scale the legend values do not change. This is discussed more in the next section.
 
-We have to make sure to get the domain for the sampler correct. The INLA code does it above, but inlabru by default does not. More about that here <https://inlabru-org.github.io/inlabru/articles/2d_lgcp_plotsampling.html>
+## Inlabru
+
+Next: Inlabru. Firstly, we have to make sure to get the domain for the sampler correct. The INLA code does it above, but inlabru by default does not. More about that here <https://inlabru-org.github.io/inlabru/articles/2d_lgcp_plotsampling.html>
 and actually the exact problem here: <https://groups.google.com/g/r-inla-discussion-group/c/0bBC9bVV-L4> even though the problem was with preferential sampling. In the mesh-process R section above, you can see the manipulation to get the domains correct for INLA. Even with including ```sampler=domain_sf``` here, the estimates are not exactly the same as INLA, but closer than it was before.
+
 ```{r inlabru-domain}
 ips <- fm_int(
   domain = list(geometry = mesh),
@@ -325,13 +338,15 @@ Then fit the ```inlabru``` model and check the summary output:
 formula_inlabru <- geometry ~ -1 + b0(1) + f(geometry, model = spde)
 fit1 <- lgcp(formula_inlabru, data=d, samplers=domain_sf, domain = list(geometry = mesh), 
              options = list(control.inla=list(int.strategy = 'grid', strategy="laplace"),
-                            control.fixed=list(prec = 0.001^2)))
+                            control.fixed=list(prec = 0.001)))
 summary(fit1)
 ```
-We can again make predictions across the domain, using the generated prediction points.  
+$\beta_0$ is -17, which is quite low since the average baseline intensity $\frac{n_{obs}}{\text{Area_D}}$ is also very small. This is because there are not that many observations (2705) over the whole of the Netherlands.
+
+We can again make predictions across the domain, exponentiating the linear predictor, using the generated prediction points.  
 ```{r preds-intensity}
-predictions1 <- predict(fit1, newdata=dp, formula = ~ b0 + f)
-predictions2 <- predict(fit1, newdata=dp, formula = ~ f)
+predictions1 <- predict(fit1, newdata=dp, formula = ~ exp(b0 + f))
+predictions2 <- predict(fit1, newdata=dp, formula = ~ exp(f))
 ggplot() +
 geom_sf(data=predictions1, aes(color=mean)) +
   scale_colour_gradient(low = "blue", high = "yellow")
@@ -340,6 +355,7 @@ ggplot() +
 geom_sf(data=predictions2, aes(color=mean)) +
   scale_colour_gradient(low = "blue", high = "yellow")
 ```
+The spatial field looks reasonable. The estimated values of the intensity are so small because we are working on the scale of meters and there are not that many observations, so per meter we do not expect the intensity to be very strong, i.e., it is not very likely for a point observation to occur within any square meter. We can get better resolution and a smoother field if the number of prediction points is higher. I observed that the PC prior for the range of the matern covariance structure $\rho$ has quite an effect, especially since there are no covariates here. That's another thing to look out for in your own applications. 
 
 That concludes my demonstrations using the `INLA` and `inlabru` software. This may hopefully serve as a useful reference for someone, that someone being at least myself. As can be seen, the INLA modelling approach is quite flexible and can be used to construct all sorts of models. Constructing the model isn't the easiest thing in the world though, and understanding each element can take a while. But the advantage is that once you are comfortable with it, there is a lot that can be done all under the same INLA umbrella. `inlabru` is a lot easier to use than `INLA` but it makes some assumptions under the hood that may be advantageous from a statistical perspective (more efficient, robust), but wave away some of the important complexity and the connection of the software to the method of INLA itself. In the end, this blog post was more about INLA than it was about LGCPs, but one begets the other and so it was the natural order of things.
 

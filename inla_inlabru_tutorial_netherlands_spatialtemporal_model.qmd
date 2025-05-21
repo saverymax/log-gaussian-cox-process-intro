@@ -52,11 +52,10 @@ d
 # 5	Particulate matter < 10 µm
 # 6001	Particulate matter < 2.5 µm
 d %>% group_by(Samplingpoint) |> filter(Pollutant==6001, Value>-1) |> collect() -> df
-df
+head(df)
 ```
 Add locations to the sampling stations.
 ```{r processing}
-df
 df <- df %>%
    #mutate(Samplingpoint = str_remove(Samplingpoint, "BE/"))
    mutate(Samplingpoint = str_remove(Samplingpoint, "NL/"))
@@ -76,7 +75,7 @@ st_crs(air_sf) <- "EPSG:4326"
 
 # Let's also select the amount of time that we will be working with
 air_sf <- air_sf %>% filter(Start<=as.POSIXct("2023-01-15"))
-air_sf
+head(air_sf)
 ```
 Then examine the time series
 ```{r plot-time-series}
