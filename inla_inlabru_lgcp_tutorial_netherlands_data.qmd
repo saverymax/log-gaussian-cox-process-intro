@@ -341,7 +341,7 @@ fit1 <- lgcp(formula_inlabru, data=d, samplers=domain_sf, domain = list(geometry
                             control.fixed=list(prec = 0.001)))
 summary(fit1)
 ```
-$\beta_0$ is -17, which is quite low because the average baseline intensity $n_{obs}/\text{Area_D}$ is expected to be very small. This is because there are not that many observations (2705) over the whole of the Netherlands, especially not per/meter.
+$\beta_0$ is -17, which is quite low because the average baseline intensity $n_{obs}/|D|$ is expected to be very small. This is because there are not that many observations (2705) over the whole of the Netherlands, especially not per/meter.
 
 We can again make predictions across the domain, exponentiating the linear predictor, using the generated prediction points.  
 ```{r preds-intensity}
