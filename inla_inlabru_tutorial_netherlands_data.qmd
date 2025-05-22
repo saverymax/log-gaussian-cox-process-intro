@@ -55,7 +55,6 @@ merged_df <- df %>%
 station_locations_sf <- st_as_sf(station_locations, coords = c("Longitude", "Latitude"))
 air_sf <- st_as_sf(merged_df, coords = c("Longitude", "Latitude"))
 st_crs(air_sf) <- "EPSG:4326"
-air_sf$Samplingpoint
 ```
 Then examine the time series
 ```{r plot-time-series}

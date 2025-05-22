@@ -6,7 +6,7 @@ Having completed air pollution modelling in `INLA` and `inlabru`, it is time to 
 
 The model fit here has intensity specified as 
 $$
-\lambda(s) = \exp[\beta_0 + f(s)]
+\lambda(s) = \exp[\beta_0 + f(s)].
 $$
 Here I only use an intercept and spatial field to model the intensity, so we won't have to worry about downloading any covariates.
 
@@ -199,7 +199,7 @@ Next, create the `INLA` stack, for both observations and for prediction points. 
 
 First we create vectors for the observed response and for estimation. For `y.pp`, `nv` is the number of mesh nodes and `n` is the number of observations, where there will be a 0 for each element of length `nv` and a 1 for each of length `n`. `e.pp` will consist of the integration weights `w` of length `nv` and a set of 0s of length `n`. This is for the numerical integration in the LGCP likelihood. Just as in the point process likelihood, we have two components: An intractable integral to be approximated, and a product of point locations: 
 $$
-L(\lambda)\propto\prod_iλ(s_i​)\exp\left(−\int_D\lambda(s)ds\right)
+L(\lambda)\propto\prod_iλ(s_i​)\exp\left(−\int_D\lambda(s)ds\right).
 $$
 ```{r y-vec}
 y.pp <- rep(0:1, c(nv, n))
@@ -233,7 +233,7 @@ $$
 \beta_0 +
 \boldsymbol{A}_{npred}
 \boldsymbol{z}_{pred}
-\end{aligned}
+\end{aligned},
 $$
 so that there is a response for each component, an intercept for each, and a projection matrix for each. The below code reflects this. Notice that for `A.y` and `A.pp`, we use the function `inla.spde.make.A()`. This function interpolates the values of the spatial field at the observed location using the triangles in the mesh that each location falls within.
 
