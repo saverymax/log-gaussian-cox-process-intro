@@ -319,7 +319,7 @@ We can see in the legend that the intensity changes must be very small, because 
 ## Inlabru
 
 Next: Inlabru. Firstly, we have to make sure to get the domain for the sampler correct. The INLA code does it above, but inlabru by default does not. More about that here <https://inlabru-org.github.io/inlabru/articles/2d_lgcp_plotsampling.html>
-and actually the exact problem here: <https://groups.google.com/g/r-inla-discussion-group/c/0bBC9bVV-L4> even though the problem was with preferential sampling. In the mesh-process R section above, you can see the manipulation to get the domains correct for INLA. Even with including ```sampler=domain_sf``` here, the estimates are not exactly the same as INLA, but closer than it was before.
+and actually the exact problem here: <https://groups.google.com/g/r-inla-discussion-group/c/0bBC9bVV-L4> even though the problem was with preferential sampling. We had already done this in the code above to get the domain correct for INLA. Even with including ```sampler=domain_sf``` here, the estimates are not exactly the same as INLA, but closer than it was before.
 
 ```{r inlabru-domain}
 ips <- fm_int(
@@ -341,7 +341,7 @@ fit1 <- lgcp(formula_inlabru, data=d, samplers=domain_sf, domain = list(geometry
                             control.fixed=list(prec = 0.001)))
 summary(fit1)
 ```
-$\beta_0$ is -17, which is quite low since the average baseline intensity $\frac{n_{obs}}{\text{Area_D}}$ is also very small. This is because there are not that many observations (2705) over the whole of the Netherlands.
+$\beta_0$ is -17, which is quite low because the average baseline intensity $n_{obs}/\text{Area_D}$ is expected to be very small. This is because there are not that many observations (2705) over the whole of the Netherlands, especially not per/meter.
 
 We can again make predictions across the domain, exponentiating the linear predictor, using the generated prediction points.  
 ```{r preds-intensity}
