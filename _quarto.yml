@@ -4,7 +4,7 @@ project:
 book:
   title: "Log Gaussian Cox Processes and INLA: Theory and Application"
   author: "Max Savery"
-  date: "22/05/2025"
+  date: "05/22/2025"
   chapters:
     - index.qmd
     - intro.qmd
