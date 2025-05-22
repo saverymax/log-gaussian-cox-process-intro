@@ -611,9 +611,9 @@ b0 -17.53066 0.01922714  -17.56835 -17.53066  -17.49298 -17.53066   0</code></pr
 </div>
 <div class="sourceCode cell-code" id="cb34"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb34-1"><a href="#cb34-1" aria-hidden="true" tabindex="-1"></a>res<span class="sc">$</span>summary.hyperpar</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>                   mean          sd 0.025quant   0.5quant 0.975quant       mode
-Range for s 106.7471530 263.8428692 7.25852545 42.6774805 619.967297 14.9620472
-Stdev for s   0.3656836   0.4412558 0.03915788  0.2339291   1.508591  0.1009711</code></pre>
+<pre><code>                  mean          sd 0.025quant   0.5quant 0.975quant       mode
+Range for s 106.747578 263.8446629 7.25853272 42.6775508 619.970391 14.9620541
+Stdev for s   0.365684   0.4412564 0.03915792  0.2339293   1.508593  0.1009712</code></pre>
 </div>
 </div>
 <p>Then extract the predictions.</p>
@@ -655,7 +655,7 @@ Stdev for s   0.3656836   0.4412558 0.03915788  0.2339291   1.508591  0.1009711<
 </section>
 <section id="inlabru" class="level2" data-number="4.2">
 <h2 data-number="4.2" class="anchored" data-anchor-id="inlabru"><span class="header-section-number">4.2</span> Inlabru</h2>
-<p>Next: Inlabru. Firstly, we have to make sure to get the domain for the sampler correct. The INLA code does it above, but inlabru by default does not. More about that here <a href="https://inlabru-org.github.io/inlabru/articles/2d_lgcp_plotsampling.html" class="uri">https://inlabru-org.github.io/inlabru/articles/2d_lgcp_plotsampling.html</a> and actually the exact problem here: <a href="https://groups.google.com/g/r-inla-discussion-group/c/0bBC9bVV-L4" class="uri">https://groups.google.com/g/r-inla-discussion-group/c/0bBC9bVV-L4</a> even though the problem was with preferential sampling. In the mesh-process R section above, you can see the manipulation to get the domains correct for INLA. Even with including <code>sampler=domain_sf</code> here, the estimates are not exactly the same as INLA, but closer than it was before.</p>
+<p>Next: Inlabru. Firstly, we have to make sure to get the domain for the sampler correct. The INLA code does it above, but inlabru by default does not. More about that here <a href="https://inlabru-org.github.io/inlabru/articles/2d_lgcp_plotsampling.html" class="uri">https://inlabru-org.github.io/inlabru/articles/2d_lgcp_plotsampling.html</a> and actually the exact problem here: <a href="https://groups.google.com/g/r-inla-discussion-group/c/0bBC9bVV-L4" class="uri">https://groups.google.com/g/r-inla-discussion-group/c/0bBC9bVV-L4</a> even though the problem was with preferential sampling. We had already done this in the code above to get the domain correct for INLA. Even with including <code>sampler=domain_sf</code> here, the estimates are not exactly the same as INLA, but closer than it was before.</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb38"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb38-1"><a href="#cb38-1" aria-hidden="true" tabindex="-1"></a>ips <span class="ot">&lt;-</span> <span class="fu">fm_int</span>(</span>
 <span id="cb38-2"><a href="#cb38-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">domain =</span> <span class="fu">list</span>(<span class="at">geometry =</span> mesh),</span>
@@ -695,7 +695,7 @@ Likelihoods:
     Predictor: geometry ~ .
     Used components: effects[b0, f], latent[]
 Time used:
-    Pre = 0.732, Running = 3.4, Post = 0.404, Total = 4.53 
+    Pre = 0.746, Running = 3.77, Post = 0.532, Total = 5.05 
 Fixed effects:
       mean    sd 0.025quant 0.5quant 0.975quant    mode kld
 b0 -17.531 0.019    -17.569  -17.531    -17.493 -17.531   0
@@ -706,15 +706,15 @@ Random effects:
 
 Model hyperparameters:
                 mean       sd 0.025quant 0.5quant 0.975quant    mode
-Range for f 13174.39 32471.15     897.63  5279.37   76437.30 1852.30
-Stdev for f    15.57    18.79       1.66     9.96      64.25    4.29
+Range for f 13211.78 32577.47     899.87  5292.45   76666.10 1856.65
+Stdev for f    15.55    18.76       1.66     9.95      64.15    4.29
 
-Deviance Information Criterion (DIC) ...............: -134227.68
+Deviance Information Criterion (DIC) ...............: -134224.45
 Deviance Information Criterion (DIC, saturated) ....: NA
-Effective number of parameters .....................: -135917.28
+Effective number of parameters .....................: -135915.67
 
-Watanabe-Akaike information criterion (WAIC) ...: 10596.02
-Effective number of parameters .................: 3619.66
+Watanabe-Akaike information criterion (WAIC) ...: 10615.84
+Effective number of parameters .................: 3628.84
 
 Marginal log-Likelihood:  -68811.10 
  is computed 
@@ -722,7 +722,7 @@ Posterior summaries for the linear predictor and the fitted values are computed
 (Posterior marginals needs also 'control.compute=list(return.marginals.predictor=TRUE)')</code></pre>
 </div>
 </div>
-<p><span class="math inline">\(\beta_0\)</span> is -17, which is quite low since the average baseline intensity <span class="math inline">\(\frac{n_{obs}}{\text{Area_D}}\)</span> is also very small. This is because there are not that many observations (2705) over the whole of the Netherlands.</p>
+<p><span class="math inline">\(\beta_0\)</span> is -17, which is quite low because the average baseline intensity <span class="math inline">\(n_{obs}/\text{Area_D}\)</span> is expected to be very small. This is because there are not that many observations (2705) over the whole of the Netherlands, especially not per/meter.</p>
 <p>We can again make predictions across the domain, exponentiating the linear predictor, using the generated prediction points.</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb41"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb41-1"><a href="#cb41-1" aria-hidden="true" tabindex="-1"></a>predictions1 <span class="ot">&lt;-</span> <span class="fu">predict</span>(fit1, <span class="at">newdata=</span>dp, <span class="at">formula =</span> <span class="sc">~</span> <span class="fu">exp</span>(b0 <span class="sc">+</span> f))</span>
